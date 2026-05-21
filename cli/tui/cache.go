@@ -72,7 +72,7 @@ func (c *Cache) InvalidateFiltered() {
 		"allocation", "machine", "ip-block", "operating-system",
 		"ssh-key-group", "network-security-group",
 		"vpc-prefix", "rack", "expected-machine",
-		"expected-rack", "expected-switch", "expected-power-shelf", "sku",
+		"expected-rack", "expected-switch", "expected-power-shelf", "tray", "sku",
 		"dpu-extension-service", "infiniband-partition", "nvlink-logical-partition"} {
 		delete(c.items, rt)
 		delete(c.fetched, rt)
