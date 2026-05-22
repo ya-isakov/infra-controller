@@ -6,8 +6,20 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: nico-rest-local
+# Route docker.io and gcr.io pulls through the Mirantis artifactory proxy.
+# Uses containerd's hosts.toml mechanism (mounted from ./deploy/kind/certs.d).
+# The legacy `mirrors` block is incompatible with the kind node's default
+# `config_path` setting and prevents containerd's CRI plugin from starting.
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
 nodes:
   - role: control-plane
+    extraMounts:
+      - hostPath: ./deploy/kind/certs.d
+        containerPath: /etc/containerd/certs.d
+        readOnly: true
     extraPortMappings:
       # API service
       - containerPort: 30388
