@@ -174,17 +174,33 @@ func (f *NICoServerImpl) CreateVpc(c context.Context, req *cwssaws.VpcCreationRe
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
 	}
 
-	nid := DefaultVpcId
-	_, ok := f.v[DefaultVpcId]
-	if ok {
-		// Default VPC already exists, create a new one with a different ID
+	// Honor the caller-supplied ID so the DB's ControllerVpcID matches what
+	// inventory discovery later reports back; otherwise the VPC is treated
+	// as missing on Site and flipped to Error.
+	var nid string
+	switch {
+	case req.Id != nil && req.Id.Value != "":
+		nid = req.Id.Value
+	case f.v[DefaultVpcId] == nil:
+		nid = DefaultVpcId
+	default:
 		nid = uuid.NewString()
 	}
 
+	if _, exists := f.v[nid]; exists {
+		return nil, status.Errorf(codes.AlreadyExists, "VPC with ID %q already exists", nid)
+	}
+
 	nv := &cwssaws.Vpc{
-		Id:                   &cwssaws.VpcId{Value: nid},
-		Name:                 req.Name,
-		TenantOrganizationId: req.TenantOrganizationId,
+		Id:                        &cwssaws.VpcId{Value: nid},
+		Name:                      req.Name,
+		TenantOrganizationId:      req.TenantOrganizationId,
+		NetworkVirtualizationType: req.NetworkVirtualizationType,
+		RoutingProfileType:        req.RoutingProfileType,
+		NetworkSecurityGroupId:    req.NetworkSecurityGroupId,
+	}
+	if req.Vni != nil {
+		nv.Status = &cwssaws.VpcStatus{Vni: req.Vni}
 	}
 	f.v[nid] = nv
 
@@ -480,6 +496,63 @@ func (f *NICoServerImpl) FindMachineIds(ctx context.Context, req *cwssaws.Machin
 	}
 
 	return &response, nil
+}
+
+// FindMachinesByIds implements interface NICoServer
+func (f *NICoServerImpl) FindMachinesByIds(ctx context.Context, req *cwssaws.MachinesByIdsRequest) (*cwssaws.MachineList, error) {
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+	response := cwssaws.MachineList{}
+	for _, id := range req.MachineIds {
+		if obj, ok := f.m[id.GetId()]; ok {
+			response.Machines = append(response.Machines, obj)
+		}
+	}
+	return &response, nil
+}
+
+// The following stubs return empty results to keep the inventory Discover*
+// workflows quiet in local dev. The site-agent calls these on its 3-minute
+// inventory cron; without stubs they fail Unimplemented every cycle.
+func (f *NICoServerImpl) GetAllExpectedMachines(ctx context.Context, req *emptypb.Empty) (*cwssaws.ExpectedMachineList, error) {
+	return &cwssaws.ExpectedMachineList{}, nil
+}
+
+func (f *NICoServerImpl) FindInstanceTypeIds(ctx context.Context, req *cwssaws.FindInstanceTypeIdsRequest) (*cwssaws.FindInstanceTypeIdsResponse, error) {
+	return &cwssaws.FindInstanceTypeIdsResponse{}, nil
+}
+
+func (f *NICoServerImpl) FindNVLinkLogicalPartitionIds(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionSearchFilter) (*cwssaws.NVLinkLogicalPartitionIdList, error) {
+	return &cwssaws.NVLinkLogicalPartitionIdList{}, nil
+}
+
+func (f *NICoServerImpl) FindTenantOrganizationIds(ctx context.Context, req *cwssaws.TenantSearchFilter) (*cwssaws.TenantOrganizationIdList, error) {
+	return &cwssaws.TenantOrganizationIdList{}, nil
+}
+
+func (f *NICoServerImpl) GetVpcPrefixes(ctx context.Context, req *cwssaws.VpcPrefixGetRequest) (*cwssaws.VpcPrefixList, error) {
+	return &cwssaws.VpcPrefixList{}, nil
+}
+
+func (f *NICoServerImpl) ListOsImage(ctx context.Context, req *cwssaws.ListOsImageRequest) (*cwssaws.ListOsImageResponse, error) {
+	return &cwssaws.ListOsImageResponse{}, nil
+}
+
+func (f *NICoServerImpl) GetAllExpectedMachinesLinked(ctx context.Context, req *emptypb.Empty) (*cwssaws.LinkedExpectedMachineList, error) {
+	return &cwssaws.LinkedExpectedMachineList{}, nil
+}
+
+func (f *NICoServerImpl) GetAllExpectedPowerShelvesLinked(ctx context.Context, req *emptypb.Empty) (*cwssaws.LinkedExpectedPowerShelfList, error) {
+	return &cwssaws.LinkedExpectedPowerShelfList{}, nil
+}
+
+func (f *NICoServerImpl) GetAllExpectedSwitchesLinked(ctx context.Context, req *emptypb.Empty) (*cwssaws.LinkedExpectedSwitchList, error) {
+	return &cwssaws.LinkedExpectedSwitchList{}, nil
+}
+
+func (f *NICoServerImpl) GetNetworkSecurityGroupPropagationStatus(ctx context.Context, req *cwssaws.GetNetworkSecurityGroupPropagationStatusRequest) (*cwssaws.GetNetworkSecurityGroupPropagationStatusResponse, error) {
+	return &cwssaws.GetNetworkSecurityGroupPropagationStatusResponse{}, nil
 }
 
 func (f *NICoServerImpl) SetMaintenance(context.Context, *cwssaws.MaintenanceRequest) (*emptypb.Empty, error) {
