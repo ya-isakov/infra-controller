@@ -421,6 +421,17 @@ kind-reset-infra: docker-build-local
 	kubectl -n temporal rollout status deployment/temporal-history --timeout=360s || true
 	kubectl -n temporal rollout status deployment/temporal-matching --timeout=360s || true
 	kubectl -n temporal rollout status deployment/temporal-worker --timeout=360s || true
+	@echo "Waiting for Temporal frontend to become healthy..."
+	@for i in $$(seq 1 60); do \
+		kubectl -n temporal exec deploy/temporal-admintools -- temporal operator cluster system \
+			--address temporal-frontend.temporal.svc.cluster.local.:7233 \
+			--tls-cert-path /var/secrets/temporal/certs/server-interservice/tls.crt \
+			--tls-key-path /var/secrets/temporal/certs/server-interservice/tls.key \
+			--tls-ca-path /var/secrets/temporal/certs/server-interservice/ca.crt \
+			--tls-server-name interservice.server.temporal.local >/dev/null 2>&1 && break; \
+		echo "  frontend not healthy yet (attempt $$i/60), sleeping 5s..."; \
+		sleep 5; \
+	done
 	@echo "Creating Temporal namespaces with TLS..."
 	kubectl -n temporal exec deploy/temporal-admintools -- temporal operator namespace create --namespace cloud --address temporal-frontend.temporal:7233 \
 		--tls-cert-path /var/secrets/temporal/certs/server-interservice/tls.crt \
