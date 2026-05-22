@@ -221,6 +221,25 @@ create_site() {
     exit 1
 }
 
+enable_native_networking() {
+    local token=$1
+    local site_id=$2
+
+    PATCH_RESP=$(curl -s -w "\n%{http_code}" -X PATCH "$API_URL/v2/org/$ORG/nico/site/$site_id" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -d '{"capabilities": {"nativeNetworking": true}}')
+    HTTP_CODE=$(echo "$PATCH_RESP" | tail -n 1)
+    BODY=$(echo "$PATCH_RESP" | sed '$d')
+
+    if [ "$HTTP_CODE" != "200" ]; then
+        echo "ERROR: Failed to enable nativeNetworking on site $site_id (HTTP $HTTP_CODE)" >&2
+        echo "Response: $BODY" >&2
+        exit 1
+    fi
+    echo "Native Networking enabled (FNN VPCs allowed)"
+}
+
 configure_site_agent() {
     local site_id=$1
 
@@ -265,6 +284,9 @@ setup_site_agent() {
     echo "Creating site..."
     SITE_ID=$(create_site "$TOKEN")
     echo "Site ID: $SITE_ID"
+
+    echo "Enabling Native Networking on site..."
+    enable_native_networking "$TOKEN" "$SITE_ID"
 
     SITE_REG_TOKEN=$(curl -sf "$API_URL/v2/org/$ORG/nico/site/$SITE_ID?infrastructureProviderId=$(
         curl -sf "$API_URL/v2/org/$ORG/nico/infrastructure-provider/current" \
