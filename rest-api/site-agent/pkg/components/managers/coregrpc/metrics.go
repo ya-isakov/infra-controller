@@ -4,6 +4,7 @@
 package coregrpc
 
 import (
+	"sync"
 	"time"
 
 	coregrpctypes "github.com/NVIDIA/infra-controller/rest-api/site-agent/pkg/datatypes/managertypes/coregrpc"
@@ -21,19 +22,29 @@ type grpcClientMetrics struct {
 	responseLatency *prometheus.HistogramVec
 }
 
+// grpcClientMetrics is created and registered once and reused across retries
+// of CreateGrpcClient — prometheus.MustRegister panics if the same collector
+// is registered twice.
+var (
+	grpcClientMetricsOnce sync.Once
+	grpcClientMetricsInst *grpcClientMetrics
+)
+
 func makeGrpcClientMetrics() client.Metrics {
-	metrics := &grpcClientMetrics{
-		responseLatency: prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Namespace: metricsNamespace,
-				Name:      metricCarbideGrpcLatency,
-				Help:      "Response latency of each RPC",
-				Buckets:   []float64{0.0005, 0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0, 2.5, 5.0, 10.0},
-			},
-			[]string{"grpc_method", "grpc_status_code"}),
-	}
-	prometheus.MustRegister(metrics.responseLatency)
-	return metrics
+	grpcClientMetricsOnce.Do(func() {
+		grpcClientMetricsInst = &grpcClientMetrics{
+			responseLatency: prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Namespace: metricsNamespace,
+					Name:      metricCarbideGrpcLatency,
+					Help:      "Response latency of each RPC",
+					Buckets:   []float64{0.0005, 0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0, 2.5, 5.0, 10.0},
+				},
+				[]string{"grpc_method", "grpc_status_code"}),
+		}
+		prometheus.MustRegister(grpcClientMetricsInst.responseLatency)
+	})
+	return grpcClientMetricsInst
 }
 
 func (m *grpcClientMetrics) RecordRpcResponse(method, code string, duration time.Duration) {
