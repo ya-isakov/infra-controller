@@ -1,0 +1,4 @@
+server = "https://gcr.io"
+
+[host."https://dockerproxy.artifactory-eu.mcp.mirantis.net"]
+  capabilities = ["pull", "resolve"]
