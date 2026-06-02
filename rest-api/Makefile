@@ -529,8 +529,35 @@ kind-reset-helm: kind-reset-infra
 	@echo "Keycloak: http://localhost:8082"
 	@echo "================================================================================"
 
-# Default: full reset using Helm deployment
-kind-reset: kind-reset-helm
+# Default: full reset using Helm deployment, then re-point Keycloak's
+# externalBaseURL at this VM's OpenStack external IPv4 so tokens issued
+# via the VM's external address are accepted. Runs AFTER kind-reset-helm
+# so the site-agent bootstrap (setup-local.sh) still works against the
+# default localhost issuer.
+kind-reset: kind-reset-helm kind-keycloak-external-ip
+
+# Query the OpenStack instance metadata service (EC2-compat endpoint) for
+# the VM's external IPv4 and patch the running Helm release so the API
+# accepts tokens whose iss matches http://<that-ip>:8082/realms/<realm>.
+# Prefers public-ipv4 (floating IP); falls back to local-ipv4. Idempotent.
+kind-keycloak-external-ip:
+	@MD=http://169.254.169.254/latest/meta-data; \
+	EXTERNAL_IP=$$(curl -sf --max-time 3 $$MD/public-ipv4 2>/dev/null); \
+	if [ -z "$$EXTERNAL_IP" ]; then \
+		EXTERNAL_IP=$$(curl -sf --max-time 3 $$MD/local-ipv4 2>/dev/null); \
+	fi; \
+	if [ -z "$$EXTERNAL_IP" ]; then \
+		echo "ERROR: OpenStack metadata service unreachable at 169.254.169.254"; \
+		exit 1; \
+	fi; \
+	echo "Setting Keycloak externalBaseURL to http://$$EXTERNAL_IP:8082"; \
+	helm upgrade nico-rest $(UMBRELLA_CHART)/ \
+		--namespace nico-rest \
+		--reuse-values \
+		--set nico-rest-api.config.keycloak.externalBaseURL=http://$$EXTERNAL_IP:8082 \
+		--wait --timeout 2m; \
+	kubectl -n nico-rest rollout restart deployment/nico-rest-api; \
+	kubectl -n nico-rest rollout status deployment/nico-rest-api --timeout=120s
 
 # =============================================================================
 # Helm Charts
