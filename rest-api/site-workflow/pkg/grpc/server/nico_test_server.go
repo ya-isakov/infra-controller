@@ -553,6 +553,29 @@ func (f *NICoServerImpl) FindInstanceTypeIds(ctx context.Context, req *cwssaws.F
 	}, nil
 }
 
+func (f *NICoServerImpl) AssociateMachinesWithInstanceType(ctx context.Context, req *cwssaws.AssociateMachinesWithInstanceTypeRequest) (*cwssaws.AssociateMachinesWithInstanceTypeResponse, error) {
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+	if req.InstanceTypeId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "instance_type_id is required")
+	}
+	if len(req.MachineIds) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "machine_ids is required")
+	}
+	return &cwssaws.AssociateMachinesWithInstanceTypeResponse{}, nil
+}
+
+func (f *NICoServerImpl) RemoveMachineInstanceTypeAssociation(ctx context.Context, req *cwssaws.RemoveMachineInstanceTypeAssociationRequest) (*cwssaws.RemoveMachineInstanceTypeAssociationResponse, error) {
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+	if req.MachineId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "machine_id is required")
+	}
+	return &cwssaws.RemoveMachineInstanceTypeAssociationResponse{}, nil
+}
+
 func (f *NICoServerImpl) FindNVLinkLogicalPartitionIds(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionSearchFilter) (*cwssaws.NVLinkLogicalPartitionIdList, error) {
 	return &cwssaws.NVLinkLogicalPartitionIdList{
 		PartitionIds: []*cwssaws.NVLinkLogicalPartitionId{
