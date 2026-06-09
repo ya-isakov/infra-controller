@@ -269,6 +269,9 @@ flow-protogen:
 KIND_CLUSTER_NAME := nico-rest-local
 KUSTOMIZE_OVERLAY := deploy/kustomize/overlays/local
 LOCAL_DOCKERFILE_DIR := docker/local
+# Optional override for kind-keycloak-external-ip / kind-reset, e.g.:
+#   make kind-reset EXTERNAL_IP=172.19.124.149
+EXTERNAL_IP ?=
 
 # Recommended colima configuration for full stack with Temporal:
 #   colima start --cpu 8 --memory 8 --disk 100
@@ -530,31 +533,37 @@ kind-reset-helm: kind-reset-infra
 	@echo "================================================================================"
 
 # Default: full reset using Helm deployment, then re-point Keycloak's
-# externalBaseURL at this VM's OpenStack external IPv4 so tokens issued
-# via the VM's external address are accepted. Runs AFTER kind-reset-helm
-# so the site-agent bootstrap (setup-local.sh) still works against the
-# default localhost issuer.
+# externalBaseURL at this VM's external IPv4 so tokens issued via the VM's
+# external address are accepted. Runs AFTER kind-reset-helm so the site-agent
+# bootstrap (setup-local.sh) still works against the default localhost issuer.
+# Override autodetect with: make kind-reset EXTERNAL_IP=<ip>
 kind-reset: kind-reset-helm kind-keycloak-external-ip
 
-# Query the OpenStack instance metadata service (EC2-compat endpoint) for
-# the VM's external IPv4 and patch the running Helm release so the API
-# accepts tokens whose iss matches http://<that-ip>:8082/realms/<realm>.
-# Prefers public-ipv4 (floating IP); falls back to local-ipv4. Idempotent.
+# Patch the running Helm release so the API accepts tokens whose iss matches
+# http://<external-ip>:8082/realms/<realm>. Uses EXTERNAL_IP when set;
+# otherwise queries OpenStack metadata (public-ipv4, then local-ipv4).
 kind-keycloak-external-ip:
-	@MD=http://169.254.169.254/latest/meta-data; \
-	EXTERNAL_IP=$$(curl -sf --max-time 3 $$MD/public-ipv4 2>/dev/null); \
-	if [ -z "$$EXTERNAL_IP" ]; then \
-		EXTERNAL_IP=$$(curl -sf --max-time 3 $$MD/local-ipv4 2>/dev/null); \
+	@RESOLVED_IP="$(EXTERNAL_IP)"; \
+	if [ -z "$$RESOLVED_IP" ]; then \
+		MD=http://169.254.169.254/latest/meta-data; \
+		RESOLVED_IP=$$(curl -sf --max-time 3 $$MD/public-ipv4 2>/dev/null); \
+		if [ -z "$$RESOLVED_IP" ]; then \
+			RESOLVED_IP=$$(curl -sf --max-time 3 $$MD/local-ipv4 2>/dev/null); \
+		fi; \
+		if [ -z "$$RESOLVED_IP" ]; then \
+			echo "ERROR: EXTERNAL_IP not set and OpenStack metadata service unreachable at 169.254.169.254"; \
+			echo "Set it explicitly, e.g.: make kind-keycloak-external-ip EXTERNAL_IP=172.19.124.149"; \
+			exit 1; \
+		fi; \
+		echo "Auto-detected external IP: $$RESOLVED_IP"; \
+	else \
+		echo "Using EXTERNAL_IP=$$RESOLVED_IP"; \
 	fi; \
-	if [ -z "$$EXTERNAL_IP" ]; then \
-		echo "ERROR: OpenStack metadata service unreachable at 169.254.169.254"; \
-		exit 1; \
-	fi; \
-	echo "Setting Keycloak externalBaseURL to http://$$EXTERNAL_IP:8082"; \
+	echo "Setting Keycloak externalBaseURL to http://$$RESOLVED_IP:8082"; \
 	helm upgrade nico-rest $(UMBRELLA_CHART)/ \
 		--namespace nico-rest \
 		--reuse-values \
-		--set nico-rest-api.config.keycloak.externalBaseURL=http://$$EXTERNAL_IP:8082 \
+		--set nico-rest-api.config.keycloak.externalBaseURL=http://$$RESOLVED_IP:8082 \
 		--wait --timeout 2m; \
 	kubectl -n nico-rest rollout restart deployment/nico-rest-api; \
 	kubectl -n nico-rest rollout status deployment/nico-rest-api --timeout=120s
