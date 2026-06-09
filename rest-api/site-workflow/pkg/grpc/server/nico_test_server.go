@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/status"
@@ -64,9 +65,15 @@ var (
 	DefaultVpcPrefixCIDR = "10.0.0.0/16"
 )
 
-// NICoServerImpl implements interface NICoServer
+// NICoServerImpl implements interface NICoServer.
+//
+// The in-memory maps below have no per-field locking; every RPC handler is
+// serialized by the unary interceptor registered in NICoTest, which takes
+// mu for the duration of the call. Do not call handlers from other handlers
+// without releasing the lock first.
 type NICoServerImpl struct {
 	cwssaws.UnimplementedForgeServer
+	mu  sync.Mutex
 	v   map[string]*cwssaws.Vpc
 	ns  map[string]*cwssaws.NetworkSegment
 	ins map[string]*cwssaws.Instance
@@ -2415,9 +2422,6 @@ func NICoTest(secs int) {
 		panic(err)
 	}
 
-	s := grpc.NewServer()
-	reflection.Register(s)
-
 	nicoServer := &NICoServerImpl{
 		v:                make(map[string]*cwssaws.Vpc),
 		ns:               make(map[string]*cwssaws.NetworkSegment),
@@ -2437,6 +2441,22 @@ func NICoTest(secs int) {
 	}
 	nicoServer.LoadTestMachines()
 	nicoServer.LoadTestIdentity()
+
+	// Serialize every RPC against nicoServer.mu. Handlers freely read and
+	// write the in-memory maps without per-field locking, so a single coarse
+	// lock at the boundary is the simplest way to avoid the "concurrent map
+	// read and map write" fatals we hit under parallel gRPC traffic.
+	s := grpc.NewServer(grpc.UnaryInterceptor(func(
+		ctx context.Context,
+		req any,
+		_ *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (any, error) {
+		nicoServer.mu.Lock()
+		defer nicoServer.mu.Unlock()
+		return handler(ctx, req)
+	}))
+	reflection.Register(s)
 
 	cwssaws.RegisterForgeServer(s, nicoServer)
 
