@@ -384,10 +384,11 @@ func (mcgsc *MockCoreGrpcServiceClient) FindMachinesByIds(ctx context.Context, i
 	out := &wflows.MachineList{}
 	if in != nil {
 		for _, id := range in.MachineIds {
+			hostID := mockdata.HostIDFromMachineID(id.GetId())
 			out.Machines = append(out.Machines, &wflows.Machine{
 				Id:            id,
 				State:         "Ready",
-				DiscoveryInfo: mockdata.MachineDiscoveryInfo(),
+				DiscoveryInfo: mockdata.MachineDiscoveryInfoForHost(hostID),
 			})
 		}
 	}

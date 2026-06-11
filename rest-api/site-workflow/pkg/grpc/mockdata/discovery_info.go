@@ -3,7 +3,20 @@
 
 package mockdata
 
-import wflows "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/schema/site-agent/workflows/v1"
+import (
+	"fmt"
+	"hash/fnv"
+	"strconv"
+	"strings"
+
+	wflows "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/schema/site-agent/workflows/v1"
+)
+
+const (
+	// MockHostCount is the number of preloaded mock hosts (IDs 0..MockHostCount-1).
+	MockHostCount    = 6
+	mockHostIDPrefix = "mock-host-"
+)
 
 func strPtr(s string) *string {
 	return &s
@@ -28,90 +41,146 @@ func memoryDevice(sizeMB uint32, memType string) *wflows.MemoryDevice {
 	}
 }
 
-// MachineDiscoveryInfo returns hardware discovery metadata for mocked test machines.
+// MockMachineID returns the stable mock-core machine ID for a host index.
+func MockMachineID(hostID int) string {
+	return fmt.Sprintf("%s%d", mockHostIDPrefix, hostID)
+}
+
+// HostIDFromMachineID maps a machine ID to a mock host index in [0, MockHostCount).
+func HostIDFromMachineID(machineID string) int {
+	if strings.HasPrefix(machineID, mockHostIDPrefix) {
+		if n, err := strconv.Atoi(strings.TrimPrefix(machineID, mockHostIDPrefix)); err == nil {
+			if n >= 0 && n < MockHostCount {
+				return n
+			}
+		}
+	}
+
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(machineID))
+	return int(h.Sum32() % MockHostCount)
+}
+
+// MockHostname returns a host-specific hostname for mocked machines.
+func MockHostname(hostID int) string {
+	return fmt.Sprintf("%s.nico.nvidia.com", MockMachineID(hostID))
+}
+
+func mockMAC(prefix string, lastOctet byte, hostID int) string {
+	return fmt.Sprintf("%s:%02X", prefix, lastOctet+byte(hostID))
+}
+
+func mockSwitchID(hostID int) string {
+	return fmt.Sprintf("00:01:00:00:02:%02X", hostID)
+}
+
+func mockSwitchName(hostID int) string {
+	return fmt.Sprintf("leaf-%d", hostID)
+}
+
+func mockSwitchPort(basePort int, hostID int) string {
+	return fmt.Sprintf("Eth1/%d", basePort+hostID)
+}
+
+func mockIBGUID(base uint64, hostID int) string {
+	return fmt.Sprintf("%016X", base+uint64(hostID))
+}
+
+// MachineDiscoveryInfo returns hardware discovery metadata for mock host 0.
 func MachineDiscoveryInfo() *wflows.DiscoveryInfo {
+	return MachineDiscoveryInfoForHost(0)
+}
+
+// MachineDiscoveryInfoForHost returns host-specific hardware discovery metadata.
+func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
+	if hostID < 0 {
+		hostID = 0
+	}
+	hostID = hostID % MockHostCount
+
 	machineArch := wflows.CpuArchitecture_X86_64
+	diskSerialBase := 201196 + hostID
 
 	return &wflows.DiscoveryInfo{
 		NetworkInterfaces: []*wflows.NetworkInterface{
 			{
-				MacAddress: "58:A2:E1:5B:D1:B0",
+				MacAddress: mockMAC("58:A2:E1:5B:D1", 0xB0, hostID),
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
-					"/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/enp1s0np0",
+					fmt.Sprintf("/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/enp1s0np0-host%d", hostID),
 					0,
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
 					"0000:01:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "Eth1/1",
-					SwitchId:         strPtr("00:01:00:00:02:00"),
-					SwitchSystemName: "leaf-0",
+					PortId:           mockSwitchPort(1, hostID),
+					SwitchId:         strPtr(mockSwitchID(hostID)),
+					SwitchSystemName: mockSwitchName(hostID),
 				},
 			},
 			{
-				MacAddress: "6C:B3:11:8D:8F:70",
+				MacAddress: mockMAC("6C:B3:11:8D:8F", 0x70, hostID),
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/ens11f0",
+					fmt.Sprintf("/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/ens11f0-host%d", hostID),
 					0,
 					"I350 Gigabit Network Connection",
 					"0000:a3:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "Eth1/2",
-					SwitchId:         strPtr("00:01:00:00:02:00"),
-					SwitchSystemName: "leaf-0",
+					PortId:           mockSwitchPort(2, hostID),
+					SwitchId:         strPtr(mockSwitchID(hostID)),
+					SwitchSystemName: mockSwitchName(hostID),
 				},
 			},
 			{
-				MacAddress: "6C:B3:11:8D:8F:71",
+				MacAddress: mockMAC("6C:B3:11:8D:8F", 0x71, hostID),
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/ens11f1",
+					fmt.Sprintf("/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/ens11f1-host%d", hostID),
 					0,
 					"I350 Gigabit Network Connection",
 					"0000:a3:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "Eth1/11",
-					SwitchId:         strPtr("00:01:00:00:02:00"),
-					SwitchSystemName: "leaf-0",
+					PortId:           mockSwitchPort(11, hostID),
+					SwitchId:         strPtr(mockSwitchID(hostID)),
+					SwitchSystemName: mockSwitchName(hostID),
 				},
 			},
 		},
 		BlockDevices: []*wflows.BlockDevice{
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: "S64HNT0Y201196", DeviceType: "disk"},
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: "S64HNT0Y201195", DeviceType: "disk"},
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: "S64HNT0Y202243", DeviceType: "disk"},
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: "S64HNT0Y201188", DeviceType: "disk"},
-			{Model: "SAMSUNG MZQL21T9HCJR-00A07", Revision: "GDC5A02Q", Serial: "S64GNN0WB19128", DeviceType: "disk"},
-			{Model: "SAMSUNG MZQL21T9HCJR-00A07", Revision: "GDC5A02Q", Serial: "S64GNN0WB19130", DeviceType: "disk"},
-			{Model: "SAMSUNG MZQL2960HCJR-00A07", Revision: "GDC5A02Q", Serial: "S64FNN0XB34201", DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase), DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase+1), DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase+2), DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase+3), DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL21T9HCJR-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64GNN0W%06d", 19128+hostID), DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL21T9HCJR-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64GNN0W%06d", 19130+hostID), DeviceType: "disk"},
+			{Model: "SAMSUNG MZQL2960HCJR-00A07", Revision: "GDC5A02Q", Serial: fmt.Sprintf("S64FNN0X%06d", 34201+hostID), DeviceType: "disk"},
 		},
 		MachineType: "x86_64",
 		MachineArch: &machineArch,
 		NvmeDevices: []*wflows.NvmeDevice{
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64HNT0Y201196"},
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64HNT0Y201195"},
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64HNT0Y202243"},
-			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64HNT0Y201188"},
-			{Model: "SAMSUNG MZQL21T9HCJR-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64GNN0WB19128"},
-			{Model: "SAMSUNG MZQL21T9HCJR-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64GNN0WB19130"},
-			{Model: "SAMSUNG MZQL2960HCJR-00A07", FirmwareRev: "GDC5A02Q", Serial: "S64FNN0XB34201"},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase)},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase+1)},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase+2)},
+			{Model: "SAMSUNG MZQL23T8HCLS-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64HNT0Y2%06d", diskSerialBase+3)},
+			{Model: "SAMSUNG MZQL21T9HCJR-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64GNN0W%06d", 19128+hostID)},
+			{Model: "SAMSUNG MZQL21T9HCJR-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64GNN0W%06d", 19130+hostID)},
+			{Model: "SAMSUNG MZQL2960HCJR-00A07", FirmwareRev: "GDC5A02Q", Serial: fmt.Sprintf("S64FNN0X%06d", 34201+hostID)},
 		},
 		DmiData: &wflows.DmiData{
-			BoardName:     "MZG3-GU0-000",
-			BoardVersion:  "03000300",
+			BoardName:     fmt.Sprintf("MZG3-GU0-00%d", hostID),
+			BoardVersion:  fmt.Sprintf("0300030%d", hostID),
 			BiosVersion:   "R23_F20",
-			ProductSerial: "DPG5NS621A0001",
-			BoardSerial:   "PK1N6300085",
-			ChassisSerial: "2451R26302R1.0U1057",
+			ProductSerial: fmt.Sprintf("DPG5NS621A%04d", hostID),
+			BoardSerial:   fmt.Sprintf("PK1N6300%03d", 85+hostID),
+			ChassisSerial: fmt.Sprintf("2451R26302R1.0U10%02d", 57+hostID),
 			BiosDate:      "04/01/2026",
-			ProductName:   "R263-ZG0-AAL2-000",
+			ProductName:   fmt.Sprintf("R263-ZG0-AAL2-00%d", hostID),
 			SysVendor:     "Giga Computing",
 		},
 		InfinibandInterfaces: []*wflows.InfinibandInterface{
@@ -119,35 +188,35 @@ func MachineDiscoveryInfo() *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT28800 Family [ConnectX-5 Ex]",
-					"/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.0/infiniband/ibp225s0f0",
+					fmt.Sprintf("/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.0/infiniband/ibp225s0f0-host%d", hostID),
 					0,
 					"MT28800 Family [ConnectX-5 Ex]",
 					"0000:e1:00.0",
 				),
-				Guid: "0000000000000000",
+				Guid: mockIBGUID(0, hostID),
 			},
 			{
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT28800 Family [ConnectX-5 Ex]",
-					"/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.1/infiniband/ibp225s0f1",
+					fmt.Sprintf("/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.1/infiniband/ibp225s0f1-host%d", hostID),
 					0,
 					"MT28800 Family [ConnectX-5 Ex]",
 					"0000:e1:00.1",
 				),
-				Guid: "0000000000000001",
+				Guid: mockIBGUID(1, hostID),
 			},
 		},
 		Gpus: []*wflows.Gpu{
 			{
 				Name:           "NVIDIA A30",
-				Serial:         "1651922012475",
+				Serial:         fmt.Sprintf("1651922012%03d", 475+hostID),
 				DriverVersion:  "580.126.16",
 				VbiosVersion:   "92.00.66.00.04",
 				InforomVersion: "1001.0205.00.02",
 				TotalMemory:    "24576 MiB",
 				Frequency:      "930 MHz",
-				PciBusId:       "00000000:C1:00.0",
+				PciBusId:       fmt.Sprintf("00000000:C%d:00.0", 1+hostID),
 			},
 		},
 		MemoryDevices: []*wflows.MemoryDevice{
@@ -172,10 +241,14 @@ func MachineDiscoveryInfo() *wflows.DiscoveryInfo {
 	}
 }
 
-// EnsureMachineDiscoveryInfo backfills hardware discovery metadata when absent.
+// EnsureMachineDiscoveryInfo backfills host-specific hardware discovery metadata when absent.
 func EnsureMachineDiscoveryInfo(machine *wflows.Machine) {
 	if machine == nil || machine.DiscoveryInfo != nil {
 		return
 	}
-	machine.DiscoveryInfo = MachineDiscoveryInfo()
+	hostID := 0
+	if machine.Id != nil {
+		hostID = HostIDFromMachineID(machine.Id.GetId())
+	}
+	machine.DiscoveryInfo = MachineDiscoveryInfoForHost(hostID)
 }
