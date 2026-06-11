@@ -33,6 +33,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/NVIDIA/infra-controller/rest-api/site-workflow/pkg/grpc/mockdata"
 	cwssaws "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/schema/site-agent/workflows/v1"
 )
 
@@ -449,13 +450,16 @@ func (f *NICoServerImpl) AllocateInstance(ctx context.Context, req *cwssaws.Inst
 		f.ins[nid] = &nins
 
 		m := cwssaws.Machine{
-			Id:    req.MachineId,
-			State: "Ready",
+			Id:            req.MachineId,
+			State:         "Ready",
+			DiscoveryInfo: mockdata.MachineDiscoveryInfo(),
 		}
 
 		_, ok := f.m[req.MachineId.Id]
 		if !ok {
 			f.m[req.MachineId.Id] = &m
+		} else {
+			mockdata.EnsureMachineDiscoveryInfo(f.m[req.MachineId.Id])
 		}
 
 		return &nins, nil
@@ -557,6 +561,7 @@ func (f *NICoServerImpl) FindMachinesByIds(ctx context.Context, req *cwssaws.Mac
 	response := cwssaws.MachineList{}
 	for _, id := range req.MachineIds {
 		if obj, ok := f.m[id.GetId()]; ok {
+			mockdata.EnsureMachineDiscoveryInfo(obj)
 			response.Machines = append(response.Machines, obj)
 		}
 	}
@@ -1648,8 +1653,6 @@ func (f *NICoServerImpl) DeleteAllExpectedRacks(ctx context.Context, req *emptyp
 func (f *NICoServerImpl) LoadTestMachines() {
 	nid := uuid.NewString()
 
-	var memSize uint32 = 16384
-
 	f.m[nid] = &cwssaws.Machine{
 		Id:    &cwssaws.MachineId{Id: nid},
 		State: "Ready",
@@ -1665,230 +1668,7 @@ func (f *NICoServerImpl) LoadTestMachines() {
 				Address:              []string{generateIPAddress()},
 			},
 		},
-		DiscoveryInfo: &cwssaws.DiscoveryInfo{
-			NetworkInterfaces: []*cwssaws.NetworkInterface{
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "0x14e4",
-						Device:      "0x165f",
-						Path:        "/devices/pci0000:00/0000:00:1c.5/0000:04:00.0/net/eno8303",
-						Description: getStrPtr("NetXtreme BCM5720 2-port Gigabit Ethernet PCIe (PowerEdge Rx5xx LOM Board)"),
-					},
-				},
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "0x14e4",
-						Device:      "0x165f",
-						Path:        "/devices/pci0000:00/0000:00:1c.5/0000:04:00.1/net/eno8403",
-						Description: getStrPtr("NetXtreme BCM5720 2-port Gigabit Ethernet PCIe (PowerEdge Rx5xx LOM Board)"),
-					},
-				},
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "0x14e4",
-						Device:      "0x16d7",
-						Path:        "/devices/pci0000:30/0000:30:04.0/0000:31:00.0/net/eno12399np0",
-						Description: getStrPtr("BCM57414 NetXtreme-E 10Gb/25Gb RDMA Ethernet Controller"),
-					},
-				},
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "0x14e4",
-						Device:      "0x16d7",
-						Path:        "/devices/pci0000:30/0000:30:04.0/0000:31:00.1/net/eno12409np1",
-						Description: getStrPtr("BCM57414 NetXtreme-E 10Gb/25Gb RDMA Ethernet Controller"),
-					},
-				},
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "0x15b3",
-						Device:      "0xa2d6",
-						Path:        "/devices/pci0000:b0/0000:b0:02.0/0000:b1:00.0/net/enp177s0f0np0",
-						NumaNode:    1,
-						Description: getStrPtr("MT42822 BlueField-2 integrated ConnectX-6 Dx network controller"),
-					},
-				},
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "0x15b3",
-						Device:      "0xa2d6",
-						Path:        "/devices/pci0000:b0/0000:b0:02.0/0000:b1:00.1/net/enp177s0f1np1",
-						NumaNode:    1,
-						Description: getStrPtr("MT42822 BlueField-2 integrated ConnectX-6 Dx network controller"),
-					},
-				},
-			},
-			BlockDevices: []*cwssaws.BlockDevice{
-				{
-					Model:    "NO_MODEL",
-					Revision: "NO_REVISION",
-				},
-				{
-					Model:    "LOGICAL_VOLUME",
-					Revision: "3.53",
-					Serial:   "600508b1001cb4d1a278bf3ee7a72228",
-				},
-				{
-					Model:    "Dell Ent NVMe CM6 RI 1.92TB",
-					Revision: "2.1.3",
-				},
-				{
-					Model:    "SSDPF2KE016T9L",
-					Revision: "2CV1L028",
-				},
-				{
-					Model:    "DELLBOSS_VD",
-					Revision: "MV.R00-0",
-				},
-			},
-			DmiData: &cwssaws.DmiData{
-				BoardName:     "7Z23CTOLWW",
-				BoardVersion:  "06",
-				BiosVersion:   "U8E122J-1.51",
-				ProductSerial: "J1050ACR",
-				BoardSerial:   ".C1KS2CS001G.",
-				ChassisSerial: "J1050ACR",
-				BiosDate:      "03/30/2023",
-				ProductName:   "ThinkSystem SR670 V2",
-				SysVendor:     "Lenovo",
-			},
-			NvmeDevices: []*cwssaws.NvmeDevice{
-				{
-					Model:       "Dell Ent NVMe CM6 RI 1.92TB",
-					FirmwareRev: "2.1.3",
-				},
-				{
-					Model:       "Dell Ent NVMe CM6 RI 1.92TB",
-					FirmwareRev: "2.1.3",
-				},
-				{
-					Model:       "Dell Ent NVMe CM6 RI 1.92TB",
-					FirmwareRev: "2.1.3",
-				},
-			},
-			Gpus: []*cwssaws.Gpu{
-				{
-					Name:           "NVIDIA H100 PCIe",
-					Serial:         "1654422005434",
-					DriverVersion:  "530.30.02",
-					VbiosVersion:   "96.00.30.00.01",
-					InforomVersion: "1010.0200.00.02",
-					TotalMemory:    "81559 MiB",
-					Frequency:      "1755 MHz",
-					PciBusId:       "00000000:17:00.0",
-				},
-			},
-			MemoryDevices: []*cwssaws.MemoryDevice{
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  &memSize,
-					MemType: getStrPtr("DDR4"),
-				},
-				{
-					SizeMb:  nil,
-					MemType: getStrPtr("UNKNOWN"),
-				},
-			},
-			InfinibandInterfaces: []*cwssaws.InfinibandInterface{
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "Mellanox Technologies",
-						Device:      "MT28908 Family [ConnectX-6]",
-						Path:        "/devices/pci0000:c9/0000:c9:02.0/0000:ca:00.0/infiniband/rocep202s0f0",
-						NumaNode:    1,
-						Description: getStrPtr("MT28908 Family [ConnectX-6]"),
-						Slot:        getStrPtr("0000:ca:00.0"),
-					},
-					Guid: "1070fd0300bd43ac",
-				},
-				{
-					PciProperties: &cwssaws.PciDeviceProperties{
-						Vendor:      "Mellanox Technologies",
-						Device:      "MT28908 Family [ConnectX-6]",
-						Path:        "/devices/pci0000:c9/0000:c9:02.0/0000:ca:00.1/infiniband/rocep202s0f1",
-						NumaNode:    1,
-						Description: getStrPtr("MT28908 Family [ConnectX-6]"),
-						Slot:        getStrPtr("0000:ca:00.1"),
-					},
-					Guid: "1070fd0300bd43ad",
-				},
-			},
-		},
+		DiscoveryInfo: mockdata.MachineDiscoveryInfo(),
 	}
 }
 

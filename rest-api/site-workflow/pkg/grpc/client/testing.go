@@ -20,6 +20,8 @@ import (
 
 	flowv1 "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/flow/protobuf/v1"
 	wflows "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/schema/site-agent/workflows/v1"
+
+	"github.com/NVIDIA/infra-controller/rest-api/site-workflow/pkg/grpc/mockdata"
 )
 
 var runes = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
@@ -383,8 +385,9 @@ func (mcgsc *MockCoreGrpcServiceClient) FindMachinesByIds(ctx context.Context, i
 	if in != nil {
 		for _, id := range in.MachineIds {
 			out.Machines = append(out.Machines, &wflows.Machine{
-				Id:    id,
-				State: "Ready",
+				Id:            id,
+				State:         "Ready",
+				DiscoveryInfo: mockdata.MachineDiscoveryInfo(),
 			})
 		}
 	}
