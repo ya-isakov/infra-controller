@@ -14,8 +14,11 @@ import (
 
 const (
 	// MockHostCount is the number of preloaded mock hosts (IDs 0..MockHostCount-1).
-	MockHostCount    = 6
-	mockHostIDPrefix = "mock-host-"
+	MockHostCount = 6
+
+	// mockMachineUUIDPrefix is the fixed UUID prefix for preloaded mock hosts.
+	// The host index is encoded in the last 12 hex digits of the UUID.
+	mockMachineUUIDPrefix = "00000000-0000-4000-8000-"
 )
 
 func strPtr(s string) *string {
@@ -41,18 +44,23 @@ func memoryDevice(sizeMB uint32, memType string) *wflows.MemoryDevice {
 	}
 }
 
-// MockMachineID returns the stable mock-core machine ID for a host index.
+// MockMachineID returns a stable UUID for a mock host index.
+// Host ID is encoded in the last 12 hex digits, e.g. host 3 → …-000000000003.
 func MockMachineID(hostID int) string {
-	return fmt.Sprintf("%s%d", mockHostIDPrefix, hostID)
+	if hostID < 0 {
+		hostID = 0
+	}
+	hostID = hostID % MockHostCount
+	return fmt.Sprintf("%s%012x", mockMachineUUIDPrefix, hostID)
 }
 
 // HostIDFromMachineID maps a machine ID to a mock host index in [0, MockHostCount).
 func HostIDFromMachineID(machineID string) int {
-	if strings.HasPrefix(machineID, mockHostIDPrefix) {
-		if n, err := strconv.Atoi(strings.TrimPrefix(machineID, mockHostIDPrefix)); err == nil {
-			if n >= 0 && n < MockHostCount {
-				return n
-			}
+	machineID = strings.ToLower(strings.TrimSpace(machineID))
+	if strings.HasPrefix(machineID, mockMachineUUIDPrefix) {
+		suffix := machineID[len(mockMachineUUIDPrefix):]
+		if n, err := strconv.ParseUint(suffix, 16, 64); err == nil && int(n) < MockHostCount {
+			return int(n)
 		}
 	}
 
@@ -63,7 +71,11 @@ func HostIDFromMachineID(machineID string) int {
 
 // MockHostname returns a host-specific hostname for mocked machines.
 func MockHostname(hostID int) string {
-	return fmt.Sprintf("%s.nico.nvidia.com", MockMachineID(hostID))
+	if hostID < 0 {
+		hostID = 0
+	}
+	hostID = hostID % MockHostCount
+	return fmt.Sprintf("mock-host-%d.nico.nvidia.com", hostID)
 }
 
 func mockMAC(prefix string, lastOctet byte, hostID int) string {
