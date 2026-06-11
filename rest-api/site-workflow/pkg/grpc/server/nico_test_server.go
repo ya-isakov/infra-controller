@@ -452,7 +452,7 @@ func (f *NICoServerImpl) AllocateInstance(ctx context.Context, req *cwssaws.Inst
 		m := cwssaws.Machine{
 			Id:            req.MachineId,
 			State:         "Ready",
-			DiscoveryInfo: mockdata.MachineDiscoveryInfo(),
+			DiscoveryInfo: mockdata.MachineDiscoveryInfoForHost(mockdata.HostIDFromMachineID(req.MachineId.GetId())),
 		}
 
 		_, ok := f.m[req.MachineId.Id]
@@ -706,7 +706,6 @@ func (f *NICoServerImpl) FindSkusByIds(ctx context.Context, req *cwssaws.SkusByI
 		var assoc []*cwssaws.MachineId
 		for mid := range f.m {
 			assoc = append(assoc, &cwssaws.MachineId{Id: mid})
-			break
 		}
 		desc := "Mock SKU describing a DGX H100 8x reference platform"
 		deviceType := "dgx-h100-8x"
@@ -1651,24 +1650,25 @@ func (f *NICoServerImpl) DeleteAllExpectedRacks(ctx context.Context, req *emptyp
 
 // LoadTestMachines loads test machines into the server
 func (f *NICoServerImpl) LoadTestMachines() {
-	nid := uuid.NewString()
-
-	f.m[nid] = &cwssaws.Machine{
-		Id:    &cwssaws.MachineId{Id: nid},
-		State: "Ready",
-		Interfaces: []*cwssaws.MachineInterface{
-			{
-				Id:                   &cwssaws.MachineInterfaceId{Value: uuid.NewString()},
-				AttachedDpuMachineId: &cwssaws.MachineId{Id: uuid.NewString()},
-				MachineId:            &cwssaws.MachineId{Id: nid},
-				SegmentId:            &cwssaws.NetworkSegmentId{Value: uuid.NewString()},
-				Hostname:             "nico.nvidia.com",
-				PrimaryInterface:     true,
-				MacAddress:           generateMacAddress(),
-				Address:              []string{generateIPAddress()},
+	for hostID := 0; hostID < mockdata.MockHostCount; hostID++ {
+		mid := mockdata.MockMachineID(hostID)
+		f.m[mid] = &cwssaws.Machine{
+			Id:    &cwssaws.MachineId{Id: mid},
+			State: "Ready",
+			Interfaces: []*cwssaws.MachineInterface{
+				{
+					Id:                   &cwssaws.MachineInterfaceId{Value: uuid.NewString()},
+					AttachedDpuMachineId: &cwssaws.MachineId{Id: uuid.NewString()},
+					MachineId:            &cwssaws.MachineId{Id: mid},
+					SegmentId:            &cwssaws.NetworkSegmentId{Value: uuid.NewString()},
+					Hostname:             mockdata.MockHostname(hostID),
+					PrimaryInterface:     true,
+					MacAddress:           generateMacAddress(),
+					Address:              []string{generateIPAddress()},
+				},
 			},
-		},
-		DiscoveryInfo: mockdata.MachineDiscoveryInfo(),
+			DiscoveryInfo: mockdata.MachineDiscoveryInfoForHost(hostID),
+		}
 	}
 }
 
