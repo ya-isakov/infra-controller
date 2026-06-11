@@ -71,9 +71,16 @@ message TpmDescription {
   string tpm_spec = 3;
 }
 
+message NetworkInterfaceLldp {
+  string port_id = 1;
+  optional string switch_id = 2;
+  string switch_system_name = 3;
+}
+
 message NetworkInterface {
   string mac_address = 1;
   PciDeviceProperties pci_properties = 2;
+  optional NetworkInterfaceLldp lldp = 3;
 }
 
 message InfinibandInterface {

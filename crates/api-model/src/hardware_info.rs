@@ -58,11 +58,23 @@ pub struct HardwareInfo {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NetworkInterfaceLldp {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub port_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub switch_id: Option<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub switch_system_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NetworkInterface {
     #[serde(deserialize_with = "carbide_network::deserialize_mlx_mac")]
     pub mac_address: MacAddress,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pci_properties: Option<PciDeviceProperties>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lldp: Option<NetworkInterfaceLldp>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

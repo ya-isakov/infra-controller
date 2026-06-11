@@ -438,6 +438,16 @@ type APIMachineGPUInfo struct {
 	PciBusId *string `json:"pciBusId"`
 }
 
+// APIMachineNetworkInterfaceLldp is LLDP data discovered on a network interface.
+type APIMachineNetworkInterfaceLldp struct {
+	// PortID is the remote switch port identifier (e.g. Eth1/11).
+	PortID *string `json:"portID,omitempty"`
+	// SwitchID is the chassis ID of the remote switch (optional).
+	SwitchID *string `json:"switchID,omitempty"`
+	// SwitchSystemName is the system name of the remote switch (e.g. leaf-0).
+	SwitchSystemName *string `json:"switchSystemName,omitempty"`
+}
+
 // APIMachineNetworkInterface is the data structure to capture API representation of a Machine's Network Interface Info
 type APIMachineNetworkInterface struct {
 	// Name of the Machine's NetworkInterface
@@ -454,6 +464,8 @@ type APIMachineNetworkInterface struct {
 	Description *string `json:"description"`
 	// Slot is the slot number of the Machine's NetworkInterface
 	Slot *string `json:"slot"`
+	// Lldp holds LLDP neighbor data for this interface when available.
+	Lldp *APIMachineNetworkInterfaceLldp `json:"lldp,omitempty"`
 }
 
 // APIMachineInfiniBandInterface is the data structure to capture API representation of a Machine's InfiniBand Interface Info
@@ -635,6 +647,16 @@ func NewAPIMachine(dbm *cdbm.Machine, dbmcs []cdbm.MachineCapability, dbmis []cd
 						lnwiInfo.NumaNode = &cnwiInfo.PciProperties.NumaNode
 						lnwiInfo.Description = cnwiInfo.PciProperties.Description
 						lnwiInfo.Slot = cnwiInfo.PciProperties.Slot
+					}
+					if cnwiInfo.Lldp != nil {
+						lldp := &APIMachineNetworkInterfaceLldp{
+							PortID:           &cnwiInfo.Lldp.PortId,
+							SwitchSystemName: &cnwiInfo.Lldp.SwitchSystemName,
+						}
+						if cnwiInfo.Lldp.SwitchId != nil {
+							lldp.SwitchID = cnwiInfo.Lldp.SwitchId
+						}
+						lnwiInfo.Lldp = lldp
 					}
 					apim.Metadata.NetworkInterfaces = append(apim.Metadata.NetworkInterfaces, lnwiInfo)
 				}

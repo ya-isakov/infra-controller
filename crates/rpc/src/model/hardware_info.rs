@@ -25,7 +25,7 @@ use mac_address::MacAddress;
 use model::hardware_info::{
     BlockDevice, CpuInfo, DmiData, DpuData, Gpu, GpuPlatformInfo, HardwareInfo,
     InfinibandInterface, LldpSwitchData, MachineInventory, MachineInventorySoftwareComponent,
-    MachineNvLinkInfo, MemoryDevice, NetworkInterface, NvLinkGpu, NvmeDevice, PciDeviceProperties,
+    MachineNvLinkInfo, MemoryDevice, NetworkInterface, NetworkInterfaceLldp, NvLinkGpu, NvmeDevice, PciDeviceProperties,
     TpmDescription, TpmEkCertificate,
 };
 
@@ -260,6 +260,31 @@ impl TryFrom<rpc::machine_discovery::NetworkInterface> for NetworkInterface {
         Ok(Self {
             mac_address,
             pci_properties,
+            lldp: iface.lldp.map(NetworkInterfaceLldp::try_from).transpose()?,
+        })
+    }
+}
+
+impl TryFrom<rpc::machine_discovery::NetworkInterfaceLldp> for NetworkInterfaceLldp {
+    type Error = RpcDataConversionError;
+
+    fn try_from(lldp: rpc::machine_discovery::NetworkInterfaceLldp) -> Result<Self, Self::Error> {
+        Ok(Self {
+            port_id: lldp.port_id,
+            switch_id: lldp.switch_id,
+            switch_system_name: lldp.switch_system_name,
+        })
+    }
+}
+
+impl TryFrom<NetworkInterfaceLldp> for rpc::machine_discovery::NetworkInterfaceLldp {
+    type Error = RpcDataConversionError;
+
+    fn try_from(lldp: NetworkInterfaceLldp) -> Result<Self, Self::Error> {
+        Ok(Self {
+            port_id: lldp.port_id,
+            switch_id: lldp.switch_id,
+            switch_system_name: lldp.switch_system_name,
         })
     }
 }
@@ -280,6 +305,10 @@ impl TryFrom<NetworkInterface> for rpc::machine_discovery::NetworkInterface {
         Ok(Self {
             mac_address: iface.mac_address.to_string(),
             pci_properties,
+            lldp: iface
+                .lldp
+                .map(rpc::machine_discovery::NetworkInterfaceLldp::try_from)
+                .transpose()?,
         })
     }
 }
