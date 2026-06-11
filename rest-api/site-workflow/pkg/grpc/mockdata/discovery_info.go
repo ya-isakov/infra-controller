@@ -120,7 +120,7 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
-					fmt.Sprintf("/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/enp1s0np0-host%d", hostID),
+					"/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/enp1s0np0",
 					0,
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
 					"0000:01:00.0",
@@ -136,7 +136,7 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					fmt.Sprintf("/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/ens11f0-host%d", hostID),
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/ens11f0",
 					0,
 					"I350 Gigabit Network Connection",
 					"0000:a3:00.0",
@@ -152,7 +152,7 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					fmt.Sprintf("/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/ens11f1-host%d", hostID),
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/ens11f1",
 					0,
 					"I350 Gigabit Network Connection",
 					"0000:a3:00.1",
@@ -200,7 +200,7 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT28800 Family [ConnectX-5 Ex]",
-					fmt.Sprintf("/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.0/infiniband/ibp225s0f0-host%d", hostID),
+					"/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.0/infiniband/ibp225s0f0",
 					0,
 					"MT28800 Family [ConnectX-5 Ex]",
 					"0000:e1:00.0",
@@ -211,7 +211,7 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT28800 Family [ConnectX-5 Ex]",
-					fmt.Sprintf("/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.1/infiniband/ibp225s0f1-host%d", hostID),
+					"/devices/pci0000:e0/0000:e0:01.4/0000:e1:00.1/infiniband/ibp225s0f1",
 					0,
 					"MT28800 Family [ConnectX-5 Ex]",
 					"0000:e1:00.1",
@@ -228,7 +228,7 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				InforomVersion: "1001.0205.00.02",
 				TotalMemory:    "24576 MiB",
 				Frequency:      "930 MHz",
-				PciBusId:       fmt.Sprintf("00000000:C%d:00.0", 1+hostID),
+				PciBusId:       "00000000:C1:00.0",
 			},
 		},
 		MemoryDevices: []*wflows.MemoryDevice{
