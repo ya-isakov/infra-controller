@@ -269,6 +269,10 @@ flow-protogen:
 KIND_CLUSTER_NAME := nico-rest-local
 KUSTOMIZE_OVERLAY := deploy/kustomize/overlays/local
 LOCAL_DOCKERFILE_DIR := docker/local
+# Set to false to skip mock NICo Forge gRPC server (nico-rest-mock-core) during
+# kind-reset / docker-build-local / kind-load, e.g.:
+#   make kind-reset INSTALL_MOCK_CORE=false
+INSTALL_MOCK_CORE ?= true
 # Optional override for kind-keycloak-external-ip / kind-reset, e.g.:
 #   make kind-reset EXTERNAL_IP=172.19.124.149
 EXTERNAL_IP ?=
@@ -282,7 +286,11 @@ docker-build-local:
 	docker build -t $(IMAGE_REGISTRY)/nico-rest-workflow:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-workflow .
 	docker build -t $(IMAGE_REGISTRY)/nico-rest-site-manager:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-site-manager .
 	docker build -t $(IMAGE_REGISTRY)/nico-rest-site-agent:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-site-agent .
-	docker build -t $(IMAGE_REGISTRY)/nico-rest-mock-core:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-mock-core .
+	@if [ "$(INSTALL_MOCK_CORE)" != "false" ]; then \
+		docker build -t $(IMAGE_REGISTRY)/nico-rest-mock-core:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-mock-core .; \
+	else \
+		echo "Skipping nico-rest-mock-core image build (INSTALL_MOCK_CORE=false)"; \
+	fi
 	docker build -t $(IMAGE_REGISTRY)/nico-rest-db:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-db .
 	docker build -t $(IMAGE_REGISTRY)/nico-rest-cert-manager:$(IMAGE_TAG) -f $(LOCAL_DOCKERFILE_DIR)/Dockerfile.nico-rest-cert-manager .
 
@@ -305,7 +313,11 @@ kind-load:
 	kind load docker-image $(IMAGE_REGISTRY)/nico-rest-workflow:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME)
 	kind load docker-image $(IMAGE_REGISTRY)/nico-rest-site-manager:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME)
 	kind load docker-image $(IMAGE_REGISTRY)/nico-rest-site-agent:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME)
-	kind load docker-image $(IMAGE_REGISTRY)/nico-rest-mock-core:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME)
+	@if [ "$(INSTALL_MOCK_CORE)" != "false" ]; then \
+		kind load docker-image $(IMAGE_REGISTRY)/nico-rest-mock-core:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME); \
+	else \
+		echo "Skipping nico-rest-mock-core image load (INSTALL_MOCK_CORE=false)"; \
+	fi
 	kind load docker-image $(IMAGE_REGISTRY)/nico-rest-db:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME)
 	kind load docker-image $(IMAGE_REGISTRY)/nico-rest-cert-manager:$(IMAGE_TAG) --name $(KIND_CLUSTER_NAME)
 
@@ -336,7 +348,9 @@ kind-redeploy: docker-build-local kind-load
 	kubectl -n nico-rest rollout restart deployment/nico-rest-api
 	kubectl -n nico-rest rollout restart deployment/nico-rest-cloud-worker
 	kubectl -n nico-rest rollout restart deployment/nico-rest-site-worker
-	kubectl -n nico-rest rollout restart deployment/nico-rest-mock-core
+	@if [ "$(INSTALL_MOCK_CORE)" != "false" ]; then \
+		kubectl -n nico-rest rollout restart deployment/nico-rest-mock-core; \
+	fi
 	kubectl -n nico-rest rollout restart deployment/nico-rest-cert-manager
 	kubectl -n nico-rest rollout restart deployment/nico-rest-site-manager
 	kubectl -n nico-rest rollout restart statefulset/nico-rest-site-agent
@@ -344,7 +358,9 @@ kind-redeploy: docker-build-local kind-load
 	kubectl -n nico-rest rollout status deployment/nico-rest-api --timeout=120s
 	kubectl -n nico-rest rollout status deployment/nico-rest-cloud-worker --timeout=120s
 	kubectl -n nico-rest rollout status deployment/nico-rest-site-worker --timeout=120s
-	kubectl -n nico-rest rollout status deployment/nico-rest-mock-core --timeout=120s
+	@if [ "$(INSTALL_MOCK_CORE)" != "false" ]; then \
+		kubectl -n nico-rest rollout status deployment/nico-rest-mock-core --timeout=120s; \
+	fi
 	kubectl -n nico-rest rollout status deployment/nico-rest-cert-manager --timeout=120s
 	kubectl -n nico-rest rollout status deployment/nico-rest-site-manager --timeout=120s
 	kubectl -n nico-rest rollout status statefulset/nico-rest-site-agent --timeout=120s
@@ -375,7 +391,7 @@ deploy-overlay-workflow:
 # =============================================================================
 
 # Shared infrastructure: cluster, cert-manager.io, PostgreSQL, Temporal, Keycloak,
-# and mock-core (dev only).
+# and optionally mock-core (dev only; skip with INSTALL_MOCK_CORE=false).
 # common secrets and credsmgr are now installed as part of the Helm chart (nico-rest-common,
 # nico-rest-cert-manager sub-charts). App services are deployed separately by
 # kind-reset-helm or kind-reset-kustomize.
@@ -452,9 +468,13 @@ kind-reset-infra: docker-build-local
 	kubectl apply -k deploy/kustomize/base/keycloak
 	kubectl -n nico-rest rollout status deployment/keycloak --timeout=240s
 
-	@echo "Setting up Nico Mock Core (dev only, not in Helm chart)..."
-	kubectl apply -k deploy/kustomize/overlays/mock-core
-	kubectl -n nico-rest rollout status deployment/nico-rest-mock-core --timeout=240s
+	@if [ "$(INSTALL_MOCK_CORE)" != "false" ]; then \
+		echo "Setting up Nico Mock Core (dev only, not in Helm chart)..."; \
+		kubectl apply -k deploy/kustomize/overlays/mock-core; \
+		kubectl -n nico-rest rollout status deployment/nico-rest-mock-core --timeout=240s; \
+	else \
+		echo "Skipping Nico Mock Core deployment (INSTALL_MOCK_CORE=false)"; \
+	fi
 
 	@echo ""
 	@echo "================================================================================"
@@ -537,6 +557,7 @@ kind-reset-helm: kind-reset-infra
 # external address are accepted. Runs AFTER kind-reset-helm so the site-agent
 # bootstrap (setup-local.sh) still works against the default localhost issuer.
 # Override autodetect with: make kind-reset EXTERNAL_IP=<ip>
+# Skip mock Forge gRPC server: make kind-reset INSTALL_MOCK_CORE=false
 kind-reset: kind-reset-helm kind-keycloak-external-ip
 
 # Patch the running Helm release so the API accepts tokens whose iss matches
