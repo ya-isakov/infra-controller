@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/NVIDIA/infra-controller/rest-api/api/internal/config"
 	"github.com/NVIDIA/infra-controller/rest-api/api/pkg/api/handler/util/common"
@@ -1640,6 +1641,11 @@ func TestNVLinkLogicalPartitionHandler_Delete(t *testing.T) {
 	nvllp1 := testBuildNVLinkLogicalPartition(t, dbSession, "test-nvllp-1", cutil.GetPtr("Test NVLink Logical Partition"), tnOrg1, site1, tn1, cutil.GetPtr(cdbm.NVLinkLogicalPartitionStatusReady), false)
 	assert.NotNil(t, nvllp1)
 
+	// Partition that is already in Deleting state, used to verify a repeat DELETE
+	// does not refresh the Updated timestamp (which would block stale-inventory cleanup).
+	nvllpDeleting := testBuildNVLinkLogicalPartition(t, dbSession, "test-nvllp-deleting", cutil.GetPtr("Test NVLink Logical Partition"), tnOrg1, site1, tn1, cutil.GetPtr(cdbm.NVLinkLogicalPartitionStatusDeleting), false)
+	assert.NotNil(t, nvllpDeleting)
+
 	nvllp3 := testBuildNVLinkLogicalPartition(t, dbSession, "test-nvllp-3", cutil.GetPtr("Test NVLink Logical Partition"), tnOrg3, site2, tn3, cutil.GetPtr(cdbm.NVLinkLogicalPartitionStatusReady), false)
 	assert.NotNil(t, nvllp3)
 
@@ -1738,6 +1744,9 @@ func TestNVLinkLogicalPartitionHandler_Delete(t *testing.T) {
 		expectedStatus       int
 		verifyChildSpanner   bool
 		expectedErrorMessage string
+		// checkUpdatedUnchanged asserts the partition's Updated timestamp is the
+		// same before and after the call (repeat DELETE on an already-Deleting partition).
+		checkUpdatedUnchanged bool
 	}{
 		{
 			fields: fields{
@@ -1854,6 +1863,21 @@ func TestNVLinkLogicalPartitionHandler_Delete(t *testing.T) {
 			verifyChildSpanner: true,
 		},
 		{
+			fields: fields{
+				dbSession: dbSession,
+				tc:        tc,
+				scp:       scp,
+				cfg:       cfg,
+			},
+			name:                  "repeat delete on already-Deleting partition does not refresh Updated",
+			reqOrgName:            tnOrg1,
+			user:                  tnu1,
+			nvllpID:               nvllpDeleting.ID.String(),
+			expectedErr:           false,
+			expectedStatus:        http.StatusAccepted,
+			checkUpdatedUnchanged: true,
+		},
+		{
 			name: "test NVLinkLogical Partition delete API endpoint nico not-found, still success",
 			fields: fields{
 				dbSession: dbSession,
@@ -1891,6 +1915,18 @@ func TestNVLinkLogicalPartitionHandler_Delete(t *testing.T) {
 			ctx = context.WithValue(ctx, otelecho.TracerKey, tracer)
 			ec.SetRequest(ec.Request().WithContext(ctx))
 
+			// Capture the Updated timestamp before the call so we can assert a repeat
+			// DELETE on an already-Deleting partition leaves it untouched.
+			var updatedBefore time.Time
+			if tc.checkUpdatedUnchanged {
+				nvllpDAO := cdbm.NewNVLinkLogicalPartitionDAO(dbSession)
+				nvllpID, perr := uuid.Parse(tc.nvllpID)
+				require.NoError(t, perr)
+				before, gerr := nvllpDAO.GetByID(ctx, nil, nvllpID, nil)
+				require.NoError(t, gerr)
+				updatedBefore = before.Updated
+			}
+
 			ibpdh := DeleteNVLinkLogicalPartitionHandler{
 				dbSession: tc.fields.dbSession,
 				tc:        tc.fields.tc,
@@ -1920,6 +1956,10 @@ func TestNVLinkLogicalPartitionHandler_Delete(t *testing.T) {
 				nvllp, err := nvllpDAO.GetByID(ctx, nil, nvllpID, nil)
 				assert.NoError(t, err)
 				assert.Equal(t, cdbm.NVLinkLogicalPartitionStatusDeleting, nvllp.Status)
+
+				if tc.checkUpdatedUnchanged {
+					assert.Equal(t, updatedBefore, nvllp.Updated, "Updated timestamp must not be refreshed for an already-Deleting partition")
+				}
 			}
 
 			if tc.verifyChildSpanner {

@@ -1248,30 +1248,38 @@ func (dibph DeleteNVLinkLogicalPartitionHandler) Handle(c echo.Context) error {
 	// no timeout occurred and the normal flow continues.
 	var timeoutResp func() error
 	err = cdb.WithTx(ctx, dibph.dbSession, func(tx *cdb.Tx) error {
-		// Update NVLink Logical Partition and set status to Deleting
+		// Update NVLink Logical Partition and set status to Deleting, but only if it is not
+		// already Deleting. The DAO refreshes the Updated timestamp on every write, and
+		// inventory-based cleanup only reclaims a partition once it has been stale (Updated
+		// older than the threshold) while in Deleting. A reconcile loop calling DELETE in a
+		// tight loop would keep bumping Updated, so the partition never crosses that
+		// threshold and stays stuck in Deleting forever. Skipping the write when the status
+		// hasn't changed lets Updated age out and the cleanup proceed.
 		deletingStatus := cdbm.NVLinkLogicalPartitionStatusDeleting
-		if _, derr := nvllpDAO.Update(
-			ctx,
-			tx,
-			cdbm.NVLinkLogicalPartitionUpdateInput{
-				NVLinkLogicalPartitionID: nvllpID,
-				Status:                   &deletingStatus,
-			},
-		); derr != nil {
-			logger.Error().Err(derr).Msg("error updating NVLink Logical Partition in DB")
-			return cutil.NewAPIError(http.StatusInternalServerError, "Failed to delete NVLink Logical Partition, DB error", nil)
-		}
+		if nvllp.Status != cdbm.NVLinkLogicalPartitionStatusDeleting {
+			if _, derr := nvllpDAO.Update(
+				ctx,
+				tx,
+				cdbm.NVLinkLogicalPartitionUpdateInput{
+					NVLinkLogicalPartitionID: nvllpID,
+					Status:                   &deletingStatus,
+				},
+			); derr != nil {
+				logger.Error().Err(derr).Msg("error updating NVLink Logical Partition in DB")
+				return cutil.NewAPIError(http.StatusInternalServerError, "Failed to delete NVLink Logical Partition, DB error", nil)
+			}
 
-		// Create status detail
-		ssd, derr := sdDAO.CreateFromParams(ctx, tx, nvllp.ID.String(), string(deletingStatus),
-			cutil.GetPtr("Received request for deletion, pending processing"))
-		if derr != nil {
-			logger.Error().Err(derr).Msg("error creating Status Detail DB entry")
-			return cutil.NewAPIError(http.StatusInternalServerError, "Failed to create Status Detail for NVLink Logical Partition deletion", nil)
-		}
-		if ssd == nil {
-			logger.Error().Msg("Status Detail DB entry not returned from CreateFromParams")
-			return cutil.NewAPIError(http.StatusInternalServerError, "Failed to create Status Detail for NVLink Logical Partition deletion", nil)
+			// Create status detail
+			ssd, derr := sdDAO.CreateFromParams(ctx, tx, nvllp.ID.String(), string(deletingStatus),
+				cutil.GetPtr("Received request for deletion, pending processing"))
+			if derr != nil {
+				logger.Error().Err(derr).Msg("error creating Status Detail DB entry")
+				return cutil.NewAPIError(http.StatusInternalServerError, "Failed to create Status Detail for NVLink Logical Partition deletion", nil)
+			}
+			if ssd == nil {
+				logger.Error().Msg("Status Detail DB entry not returned from CreateFromParams")
+				return cutil.NewAPIError(http.StatusInternalServerError, "Failed to create Status Detail for NVLink Logical Partition deletion", nil)
+			}
 		}
 
 		// Get the temporal client for the site we are working with.
