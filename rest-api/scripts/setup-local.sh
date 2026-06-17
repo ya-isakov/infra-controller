@@ -228,7 +228,7 @@ enable_site_capabilities() {
     PATCH_RESP=$(curl -s -w "\n%{http_code}" -X PATCH "$API_URL/v2/org/$ORG/nico/site/$site_id" \
         -H "Authorization: Bearer $token" \
         -H "Content-Type: application/json" \
-        -d '{"capabilities": {"nativeNetworking": true, "nvLinkPartition": true}}')
+        -d '{"capabilities": {"nativeNetworking": true, "nvLinkPartition": true, "imageBasedOperatingSystem": true}}')
     HTTP_CODE=$(echo "$PATCH_RESP" | tail -n 1)
     BODY=$(echo "$PATCH_RESP" | sed '$d')
 
@@ -237,7 +237,7 @@ enable_site_capabilities() {
         echo "Response: $BODY" >&2
         exit 1
     fi
-    echo "Site capabilities enabled: nativeNetworking, nvLinkPartition"
+    echo "Site capabilities enabled: nativeNetworking, nvLinkPartition, imageBasedOperatingSystem"
 }
 
 configure_site_agent() {
