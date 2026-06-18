@@ -29,6 +29,7 @@ type MachineNetworkInterface struct {
 	NumaNode    *int32         `json:"numaNode,omitempty"`
 	Description NullableString `json:"description,omitempty"`
 	Slot        NullableString `json:"slot,omitempty"`
+	Lldp        *LLDP          `json:"lldp,omitempty"`
 }
 
 // NewMachineNetworkInterface instantiates a new MachineNetworkInterface object
@@ -338,6 +339,38 @@ func (o *MachineNetworkInterface) UnsetSlot() {
 	o.Slot.Unset()
 }
 
+// GetLldp returns the Lldp field value if set, zero value otherwise.
+func (o *MachineNetworkInterface) GetLldp() LLDP {
+	if o == nil || IsNil(o.Lldp) {
+		var ret LLDP
+		return ret
+	}
+	return *o.Lldp
+}
+
+// GetLldpOk returns a tuple with the Lldp field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MachineNetworkInterface) GetLldpOk() (*LLDP, bool) {
+	if o == nil || IsNil(o.Lldp) {
+		return nil, false
+	}
+	return o.Lldp, true
+}
+
+// HasLldp returns a boolean if a field has been set.
+func (o *MachineNetworkInterface) HasLldp() bool {
+	if o != nil && !IsNil(o.Lldp) {
+		return true
+	}
+
+	return false
+}
+
+// SetLldp gets a reference to the given LLDP and assigns it to the Lldp field.
+func (o *MachineNetworkInterface) SetLldp(v LLDP) {
+	o.Lldp = &v
+}
+
 func (o MachineNetworkInterface) MarshalJSON() ([]byte, error) {
 	toSerialize, err := o.ToMap()
 	if err != nil {
@@ -368,6 +401,9 @@ func (o MachineNetworkInterface) ToMap() (map[string]interface{}, error) {
 	}
 	if o.Slot.IsSet() {
 		toSerialize["slot"] = o.Slot.Get()
+	}
+	if !IsNil(o.Lldp) {
+		toSerialize["lldp"] = o.Lldp
 	}
 	return toSerialize, nil
 }

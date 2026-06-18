@@ -18614,6 +18614,10 @@ components:
           numaNode: 0
           description: NetXtreme BCM5720 Gigabit Ethernet PCIe (PowerEdge Rx5xx LOM Board)
           slot: '0000:04:00.0'
+          lldp:
+            portId: 'Ethernet1/1'
+            switchId: 'aa:bb:cc:dd:ee:ff'
+            switchSystemName: 'spine-sw-01'
       properties:
         macAddress:
           type:
@@ -18641,6 +18645,23 @@ components:
           type:
             - string
             - 'null'
+        lldp:
+          $ref: '#/components/schemas/LLDP'
+    LLDP:
+      title: LLDP
+      type: object
+      description: Link Layer Discovery Protocol information for a network interface
+      examples:
+        - portId: 'Ethernet1/1'
+          switchId: 'aa:bb:cc:dd:ee:ff'
+          switchSystemName: 'spine-sw-01'
+      properties:
+        portId:
+          type: string
+        switchId:
+          type: string
+        switchSystemName:
+          type: string
     MachineInfiniBandInterface:
       title: MachineInfiniBandInterface
       description: Describes information about an Infiniband Interface of a Machine
