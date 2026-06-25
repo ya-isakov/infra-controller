@@ -82,12 +82,13 @@ func mockMAC(prefix string, lastOctet byte, hostID int) string {
 	return fmt.Sprintf("%s:%02X", prefix, lastOctet+byte(hostID))
 }
 
-func mockSwitchID(hostID int) string {
-	return fmt.Sprintf("00:01:00:00:02:%02X", hostID)
-}
-
-func mockSwitchName(hostID int) string {
-	return fmt.Sprintf("leaf-%d", hostID)
+var mockSwitches = []struct {
+	id   string
+	name string
+}{
+	{"00:01:00:00:00:00", "leaf-ns-0"},
+	{"00:01:00:00:01:00", "leaf-0"},
+	{"00:01:00:00:01:01", "leaf-1"},
 }
 
 func mockSwitchPort(basePort int, hostID int) string {
@@ -127,8 +128,8 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
 					PortId:           mockSwitchPort(1, hostID),
-					SwitchId:         strPtr(mockSwitchID(hostID)),
-					SwitchSystemName: mockSwitchName(hostID),
+					SwitchId:         strPtr(mockSwitches[0].id),
+					SwitchSystemName: mockSwitches[0].name,
 				},
 			},
 			{
@@ -142,9 +143,9 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"0000:a3:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockSwitchPort(2, hostID),
-					SwitchId:         strPtr(mockSwitchID(hostID)),
-					SwitchSystemName: mockSwitchName(hostID),
+					PortId:           mockSwitchPort(1, hostID),
+					SwitchId:         strPtr(mockSwitches[1].id),
+					SwitchSystemName: mockSwitches[1].name,
 				},
 			},
 			{
@@ -158,9 +159,9 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"0000:a3:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockSwitchPort(11, hostID),
-					SwitchId:         strPtr(mockSwitchID(hostID)),
-					SwitchSystemName: mockSwitchName(hostID),
+					PortId:           mockSwitchPort(1, hostID),
+					SwitchId:         strPtr(mockSwitches[2].id),
+					SwitchSystemName: mockSwitches[2].name,
 				},
 			},
 		},
