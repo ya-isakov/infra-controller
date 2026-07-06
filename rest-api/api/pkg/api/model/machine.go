@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -440,12 +441,14 @@ type APIMachineGPUInfo struct {
 
 // APIMachineNetworkInterfaceLldp is LLDP data discovered on a network interface.
 type APIMachineNetworkInterfaceLldp struct {
-	// PortID is the remote switch port identifier (e.g. Eth1/11).
-	PortID *string `json:"portID,omitempty"`
-	// SwitchID is the chassis ID of the remote switch (optional).
-	SwitchID *string `json:"switchID,omitempty"`
-	// SwitchSystemName is the system name of the remote switch (e.g. leaf-0).
-	SwitchSystemName *string `json:"switchSystemName,omitempty"`
+	// Name is the system name of the remote switch (e.g. leaf-0).
+	Name *string `json:"name,omitempty"`
+	// ID is the chassis identifier of the remote switch (e.g. mac=aa:bb:cc:dd:ee:ff).
+	ID *string `json:"id,omitempty"`
+	// LocalPort is the local network interface's port name (e.g. eth1).
+	LocalPort *string `json:"localPort,omitempty"`
+	// RemotePort is the remote switch port identifier (e.g. ifname=Eth1/11).
+	RemotePort *string `json:"remotePort,omitempty"`
 }
 
 // APIMachineNetworkInterface is the data structure to capture API representation of a Machine's Network Interface Info
@@ -650,11 +653,15 @@ func NewAPIMachine(dbm *cdbm.Machine, dbmcs []cdbm.MachineCapability, dbmis []cd
 					}
 					if cnwiInfo.Lldp != nil {
 						lldp := &APIMachineNetworkInterfaceLldp{
-							PortID:           &cnwiInfo.Lldp.PortId,
-							SwitchSystemName: &cnwiInfo.Lldp.SwitchSystemName,
+							Name:       &cnwiInfo.Lldp.SwitchSystemName,
+							RemotePort: &cnwiInfo.Lldp.PortId,
 						}
 						if cnwiInfo.Lldp.SwitchId != nil {
-							lldp.SwitchID = cnwiInfo.Lldp.SwitchId
+							lldp.ID = cnwiInfo.Lldp.SwitchId
+						}
+						if cnwiInfo.PciProperties != nil {
+							localPort := path.Base(cnwiInfo.PciProperties.Path)
+							lldp.LocalPort = &localPort
 						}
 						lnwiInfo.Lldp = lldp
 					}
