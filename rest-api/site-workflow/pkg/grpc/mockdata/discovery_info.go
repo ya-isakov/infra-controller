@@ -136,8 +136,8 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"0000:01:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockMgmtSwitchPort(hostID),
-					SwitchId:         strPtr(mockSwitches[0].id),
+					PortId:           "ifname=" + mockMgmtSwitchPort(hostID),
+					SwitchId:         strPtr("mac=" + mockSwitches[0].id),
 					SwitchSystemName: mockSwitches[0].name,
 				},
 			},
@@ -152,8 +152,8 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"0000:01:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockMgmtSwitchPort(hostID),
-					SwitchId:         strPtr(mockSwitches[1].id),
+					PortId:           "ifname=" + mockMgmtSwitchPort(hostID),
+					SwitchId:         strPtr("mac=" + mockSwitches[1].id),
 					SwitchSystemName: mockSwitches[1].name,
 				},
 			},
@@ -168,8 +168,8 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"0000:a3:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockDataSwitchPort(hostID),
-					SwitchId:         strPtr(mockSwitches[0].id),
+					PortId:           "ifname=" + mockDataSwitchPort(hostID),
+					SwitchId:         strPtr("mac=" + mockSwitches[0].id),
 					SwitchSystemName: mockSwitches[0].name,
 				},
 			},
@@ -184,8 +184,8 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"0000:a3:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockDataSwitchPort(hostID),
-					SwitchId:         strPtr(mockSwitches[1].id),
+					PortId:           "ifname=" + mockDataSwitchPort(hostID),
+					SwitchId:         strPtr("mac=" + mockSwitches[1].id),
 					SwitchSystemName: mockSwitches[1].name,
 				},
 			},

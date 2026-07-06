@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 /*
 NVIDIA Infra Controller REST API
 
@@ -19,9 +22,10 @@ var _ MappedNullable = &LLDP{}
 
 // LLDP Link Layer Discovery Protocol information for a network interface
 type LLDP struct {
-	PortId           *string `json:"portId,omitempty"`
-	SwitchId         *string `json:"switchId,omitempty"`
-	SwitchSystemName *string `json:"switchSystemName,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	Id         *string `json:"id,omitempty"`
+	LocalPort  *string `json:"localPort,omitempty"`
+	RemotePort *string `json:"remotePort,omitempty"`
 }
 
 // NewLLDP instantiates a new LLDP object
@@ -41,100 +45,132 @@ func NewLLDPWithDefaults() *LLDP {
 	return &this
 }
 
-// GetPortId returns the PortId field value if set, zero value otherwise.
-func (o *LLDP) GetPortId() string {
-	if o == nil || IsNil(o.PortId) {
+// GetName returns the Name field value if set, zero value otherwise.
+func (o *LLDP) GetName() string {
+	if o == nil || IsNil(o.Name) {
 		var ret string
 		return ret
 	}
-	return *o.PortId
+	return *o.Name
 }
 
-// GetPortIdOk returns a tuple with the PortId field value if set, nil otherwise
+// GetNameOk returns a tuple with the Name field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *LLDP) GetPortIdOk() (*string, bool) {
-	if o == nil || IsNil(o.PortId) {
+func (o *LLDP) GetNameOk() (*string, bool) {
+	if o == nil || IsNil(o.Name) {
 		return nil, false
 	}
-	return o.PortId, true
+	return o.Name, true
 }
 
-// HasPortId returns a boolean if a field has been set.
-func (o *LLDP) HasPortId() bool {
-	if o != nil && !IsNil(o.PortId) {
+// HasName returns a boolean if a field has been set.
+func (o *LLDP) HasName() bool {
+	if o != nil && !IsNil(o.Name) {
 		return true
 	}
 
 	return false
 }
 
-// SetPortId gets a reference to the given string and assigns it to the PortId field.
-func (o *LLDP) SetPortId(v string) {
-	o.PortId = &v
+// SetName gets a reference to the given string and assigns it to the Name field.
+func (o *LLDP) SetName(v string) {
+	o.Name = &v
 }
 
-// GetSwitchId returns the SwitchId field value if set, zero value otherwise.
-func (o *LLDP) GetSwitchId() string {
-	if o == nil || IsNil(o.SwitchId) {
+// GetId returns the Id field value if set, zero value otherwise.
+func (o *LLDP) GetId() string {
+	if o == nil || IsNil(o.Id) {
 		var ret string
 		return ret
 	}
-	return *o.SwitchId
+	return *o.Id
 }
 
-// GetSwitchIdOk returns a tuple with the SwitchId field value if set, nil otherwise
+// GetIdOk returns a tuple with the Id field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *LLDP) GetSwitchIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SwitchId) {
+func (o *LLDP) GetIdOk() (*string, bool) {
+	if o == nil || IsNil(o.Id) {
 		return nil, false
 	}
-	return o.SwitchId, true
+	return o.Id, true
 }
 
-// HasSwitchId returns a boolean if a field has been set.
-func (o *LLDP) HasSwitchId() bool {
-	if o != nil && !IsNil(o.SwitchId) {
+// HasId returns a boolean if a field has been set.
+func (o *LLDP) HasId() bool {
+	if o != nil && !IsNil(o.Id) {
 		return true
 	}
 
 	return false
 }
 
-// SetSwitchId gets a reference to the given string and assigns it to the SwitchId field.
-func (o *LLDP) SetSwitchId(v string) {
-	o.SwitchId = &v
+// SetId gets a reference to the given string and assigns it to the Id field.
+func (o *LLDP) SetId(v string) {
+	o.Id = &v
 }
 
-// GetSwitchSystemName returns the SwitchSystemName field value if set, zero value otherwise.
-func (o *LLDP) GetSwitchSystemName() string {
-	if o == nil || IsNil(o.SwitchSystemName) {
+// GetLocalPort returns the LocalPort field value if set, zero value otherwise.
+func (o *LLDP) GetLocalPort() string {
+	if o == nil || IsNil(o.LocalPort) {
 		var ret string
 		return ret
 	}
-	return *o.SwitchSystemName
+	return *o.LocalPort
 }
 
-// GetSwitchSystemNameOk returns a tuple with the SwitchSystemName field value if set, nil otherwise
+// GetLocalPortOk returns a tuple with the LocalPort field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *LLDP) GetSwitchSystemNameOk() (*string, bool) {
-	if o == nil || IsNil(o.SwitchSystemName) {
+func (o *LLDP) GetLocalPortOk() (*string, bool) {
+	if o == nil || IsNil(o.LocalPort) {
 		return nil, false
 	}
-	return o.SwitchSystemName, true
+	return o.LocalPort, true
 }
 
-// HasSwitchSystemName returns a boolean if a field has been set.
-func (o *LLDP) HasSwitchSystemName() bool {
-	if o != nil && !IsNil(o.SwitchSystemName) {
+// HasLocalPort returns a boolean if a field has been set.
+func (o *LLDP) HasLocalPort() bool {
+	if o != nil && !IsNil(o.LocalPort) {
 		return true
 	}
 
 	return false
 }
 
-// SetSwitchSystemName gets a reference to the given string and assigns it to the SwitchSystemName field.
-func (o *LLDP) SetSwitchSystemName(v string) {
-	o.SwitchSystemName = &v
+// SetLocalPort gets a reference to the given string and assigns it to the LocalPort field.
+func (o *LLDP) SetLocalPort(v string) {
+	o.LocalPort = &v
+}
+
+// GetRemotePort returns the RemotePort field value if set, zero value otherwise.
+func (o *LLDP) GetRemotePort() string {
+	if o == nil || IsNil(o.RemotePort) {
+		var ret string
+		return ret
+	}
+	return *o.RemotePort
+}
+
+// GetRemotePortOk returns a tuple with the RemotePort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *LLDP) GetRemotePortOk() (*string, bool) {
+	if o == nil || IsNil(o.RemotePort) {
+		return nil, false
+	}
+	return o.RemotePort, true
+}
+
+// HasRemotePort returns a boolean if a field has been set.
+func (o *LLDP) HasRemotePort() bool {
+	if o != nil && !IsNil(o.RemotePort) {
+		return true
+	}
+
+	return false
+}
+
+// SetRemotePort gets a reference to the given string and assigns it to the RemotePort field.
+func (o *LLDP) SetRemotePort(v string) {
+	o.RemotePort = &v
 }
 
 func (o LLDP) MarshalJSON() ([]byte, error) {
@@ -147,14 +183,17 @@ func (o LLDP) MarshalJSON() ([]byte, error) {
 
 func (o LLDP) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.PortId) {
-		toSerialize["portId"] = o.PortId
+	if !IsNil(o.Name) {
+		toSerialize["name"] = o.Name
 	}
-	if !IsNil(o.SwitchId) {
-		toSerialize["switchId"] = o.SwitchId
+	if !IsNil(o.Id) {
+		toSerialize["id"] = o.Id
 	}
-	if !IsNil(o.SwitchSystemName) {
-		toSerialize["switchSystemName"] = o.SwitchSystemName
+	if !IsNil(o.LocalPort) {
+		toSerialize["localPort"] = o.LocalPort
+	}
+	if !IsNil(o.RemotePort) {
+		toSerialize["remotePort"] = o.RemotePort
 	}
 	return toSerialize, nil
 }
