@@ -78,21 +78,30 @@ func MockHostname(hostID int) string {
 	return fmt.Sprintf("mock-host-%d.nico.nvidia.com", hostID)
 }
 
-func mockMAC(prefix string, lastOctet byte, hostID int) string {
-	return fmt.Sprintf("%s:%02X", prefix, lastOctet+byte(hostID))
+// ufoSimMAC mirrors the MAC formula ufo-simulator's create-vm.yml uses for VM NICs:
+// vm_base_mac:00:(host_id*vm_port_count + ifaceOffset).
+func ufoSimMAC(hostID, ifaceOffset int) string {
+	return fmt.Sprintf("52:54:00:12:00:%02X", hostID*4+ifaceOffset)
 }
 
 var mockSwitches = []struct {
 	id   string
 	name string
 }{
-	{"00:01:00:00:00:00", "leaf-ns-0"},
 	{"00:01:00:00:01:00", "leaf-0"},
 	{"00:01:00:00:01:01", "leaf-1"},
 }
 
-func mockSwitchPort(basePort int, hostID int) string {
-	return fmt.Sprintf("Eth1/%d", basePort+hostID)
+// mockMgmtSwitchPort and mockDataSwitchPort return the LLDP port ID a verity switch
+// would report for a mock host's mgmt/data links, mirroring ufo-simulator's
+// leaf-0/leaf-1 swp(2*host_id+1)/swp(2*host_id+2) topology translated to verity's
+// "eth1/N" port naming (see ufo-simulator/ansible/vars/verity.yml).
+func mockMgmtSwitchPort(hostID int) string {
+	return fmt.Sprintf("eth1/%d", 2*hostID+1)
+}
+
+func mockDataSwitchPort(hostID int) string {
+	return fmt.Sprintf("eth1/%d", 2*hostID+2)
 }
 
 func mockIBGUID(base uint64, hostID int) string {
@@ -117,51 +126,67 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 	return &wflows.DiscoveryInfo{
 		NetworkInterfaces: []*wflows.NetworkInterface{
 			{
-				MacAddress: mockMAC("58:A2:E1:5B:D1", 0xB0, hostID),
+				MacAddress: ufoSimMAC(hostID, 0),
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
-					"/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/enp1s0np0",
+					"/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1",
 					0,
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
 					"0000:01:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockSwitchPort(1, hostID),
+					PortId:           mockMgmtSwitchPort(hostID),
 					SwitchId:         strPtr(mockSwitches[0].id),
 					SwitchSystemName: mockSwitches[0].name,
 				},
 			},
 			{
-				MacAddress: mockMAC("6C:B3:11:8D:8F", 0x70, hostID),
+				MacAddress: ufoSimMAC(hostID, 2),
 				PciProperties: pciProperties(
-					"Intel Corporation",
-					"I350 Gigabit Network Connection",
-					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/ens11f0",
+					"Mellanox Technologies",
+					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
+					"/devices/pci0000:00/0000:00:01.3/0000:01:00.1/net/eth2",
 					0,
-					"I350 Gigabit Network Connection",
-					"0000:a3:00.0",
+					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
+					"0000:01:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockSwitchPort(1, hostID),
+					PortId:           mockMgmtSwitchPort(hostID),
 					SwitchId:         strPtr(mockSwitches[1].id),
 					SwitchSystemName: mockSwitches[1].name,
 				},
 			},
 			{
-				MacAddress: mockMAC("6C:B3:11:8D:8F", 0x71, hostID),
+				MacAddress: ufoSimMAC(hostID, 1),
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/ens11f1",
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/eth3",
+					0,
+					"I350 Gigabit Network Connection",
+					"0000:a3:00.0",
+				),
+				Lldp: &wflows.NetworkInterfaceLldp{
+					PortId:           mockDataSwitchPort(hostID),
+					SwitchId:         strPtr(mockSwitches[0].id),
+					SwitchSystemName: mockSwitches[0].name,
+				},
+			},
+			{
+				MacAddress: ufoSimMAC(hostID, 3),
+				PciProperties: pciProperties(
+					"Intel Corporation",
+					"I350 Gigabit Network Connection",
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/eth4",
 					0,
 					"I350 Gigabit Network Connection",
 					"0000:a3:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           mockSwitchPort(1, hostID),
-					SwitchId:         strPtr(mockSwitches[2].id),
-					SwitchSystemName: mockSwitches[2].name,
+					PortId:           mockDataSwitchPort(hostID),
+					SwitchId:         strPtr(mockSwitches[1].id),
+					SwitchSystemName: mockSwitches[1].name,
 				},
 			},
 		},
