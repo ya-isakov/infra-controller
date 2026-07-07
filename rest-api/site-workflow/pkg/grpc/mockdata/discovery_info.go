@@ -92,14 +92,9 @@ var mockSwitches = []struct {
 	{"00:01:00:00:01:01", "leaf-1"},
 }
 
-// mockMgmtSwitchPort and mockDataSwitchPort return the LLDP port ID a verity switch
-// would report for a mock host's mgmt/data links, mirroring ufo-simulator's
-// leaf-0/leaf-1 swp(2*host_id+1)/swp(2*host_id+2) topology translated to verity's
-// "eth1/N" port naming (see ufo-simulator/ansible/vars/verity.yml).
-func mockMgmtSwitchPort(hostID int) string {
-	return fmt.Sprintf("eth1/%d", 2*hostID+1)
-}
-
+// mockDataSwitchPort returns the LLDP port ID a verity switch would report for a
+// mock host's data link, mirroring ufo-simulator's leaf-1 swp(2*host_id+2) topology
+// translated to verity's "eth1/N" port naming (see ufo-simulator/ansible/vars/verity.yml).
 func mockDataSwitchPort(hostID int) string {
 	return fmt.Sprintf("eth1/%d", 2*hostID+2)
 }
@@ -135,11 +130,6 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
 					"0000:01:00.0",
 				),
-				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "ifname=" + mockMgmtSwitchPort(hostID),
-					SwitchId:         strPtr("mac=" + mockSwitches[0].id),
-					SwitchSystemName: mockSwitches[0].name,
-				},
 			},
 			{
 				MacAddress: ufoSimMAC(hostID, 2),
@@ -151,11 +141,6 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
 					"0000:01:00.1",
 				),
-				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "ifname=" + mockMgmtSwitchPort(hostID),
-					SwitchId:         strPtr("mac=" + mockSwitches[1].id),
-					SwitchSystemName: mockSwitches[1].name,
-				},
 			},
 			{
 				MacAddress: ufoSimMAC(hostID, 1),
