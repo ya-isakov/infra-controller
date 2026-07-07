@@ -84,6 +84,12 @@ func ufoSimMAC(hostID, ifaceOffset int) string {
 	return fmt.Sprintf("52:54:00:12:00:%02X", hostID*4+ifaceOffset)
 }
 
+// mockMAC generates a stable, vendor-scoped MAC for interfaces that ufo-simulator
+// doesn't assign a predefined MAC to, such as the BlueField mgmt/OOB port.
+func mockMAC(prefix string, lastOctet byte, hostID int) string {
+	return fmt.Sprintf("%s:%02X", prefix, lastOctet+byte(hostID))
+}
+
 var mockSwitches = []struct {
 	id   string
 	name string
@@ -92,16 +98,12 @@ var mockSwitches = []struct {
 	{"00:01:00:00:01:01", "leaf-1"},
 }
 
-// mockMgmtSwitchPort and mockDataSwitchPort return the LLDP port ID a verity switch
-// would report for a mock host's mgmt/data links, mirroring ufo-simulator's
-// leaf-0/leaf-1 swp(2*host_id+1)/swp(2*host_id+2) topology translated to verity's
-// "eth1/N" port naming (see ufo-simulator/ansible/vars/verity.yml).
-func mockMgmtSwitchPort(hostID int) string {
-	return fmt.Sprintf("eth1/%d", 2*hostID+1)
-}
-
-func mockDataSwitchPort(hostID int) string {
-	return fmt.Sprintf("eth1/%d", 2*hostID+2)
+// mockDataSwitchPort returns the LLDP port ID a verity switch would report for a mock
+// host's Nth Intel data-NIC link (linkIndex 0 or 1) into a leaf switch, mirroring
+// ufo-simulator's leaf-0/leaf-1 swp(2*host_id+linkIndex+1) topology translated to
+// verity's "eth1/N" port naming (see ufo-simulator/ansible/vars/verity.yml).
+func mockDataSwitchPort(hostID, linkIndex int) string {
+	return fmt.Sprintf("eth1/%d", 2*hostID+linkIndex+1)
 }
 
 func mockIBGUID(base uint64, hostID int) string {
@@ -126,35 +128,30 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 	return &wflows.DiscoveryInfo{
 		NetworkInterfaces: []*wflows.NetworkInterface{
 			{
-				MacAddress: ufoSimMAC(hostID, 0),
+				MacAddress: mockMAC("58:A2:E1:5B:D1", 0xB0, hostID),
 				PciProperties: pciProperties(
 					"Mellanox Technologies",
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
-					"/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1",
+					"/devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth0",
 					0,
 					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
 					"0000:01:00.0",
 				),
-				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "ifname=" + mockMgmtSwitchPort(hostID),
-					SwitchId:         strPtr("mac=" + mockSwitches[0].id),
-					SwitchSystemName: mockSwitches[0].name,
-				},
 			},
 			{
-				MacAddress: ufoSimMAC(hostID, 2),
+				MacAddress: ufoSimMAC(hostID, 0),
 				PciProperties: pciProperties(
-					"Mellanox Technologies",
-					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
-					"/devices/pci0000:00/0000:00:01.3/0000:01:00.1/net/eth2",
+					"Intel Corporation",
+					"I350 Gigabit Network Connection",
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/eth1",
 					0,
-					"MT43244 BlueField-3 integrated ConnectX-7 network controller",
-					"0000:01:00.1",
+					"I350 Gigabit Network Connection",
+					"0000:a3:00.0",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "ifname=" + mockMgmtSwitchPort(hostID),
-					SwitchId:         strPtr("mac=" + mockSwitches[1].id),
-					SwitchSystemName: mockSwitches[1].name,
+					PortId:           "ifname=" + mockDataSwitchPort(hostID, 0),
+					SwitchId:         strPtr("mac=" + mockSwitches[0].id),
+					SwitchSystemName: mockSwitches[0].name,
 				},
 			},
 			{
@@ -162,15 +159,31 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.0/net/eth3",
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/eth2",
 					0,
 					"I350 Gigabit Network Connection",
-					"0000:a3:00.0",
+					"0000:a3:00.1",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "ifname=" + mockDataSwitchPort(hostID),
+					PortId:           "ifname=" + mockDataSwitchPort(hostID, 1),
 					SwitchId:         strPtr("mac=" + mockSwitches[0].id),
 					SwitchSystemName: mockSwitches[0].name,
+				},
+			},
+			{
+				MacAddress: ufoSimMAC(hostID, 2),
+				PciProperties: pciProperties(
+					"Intel Corporation",
+					"I350 Gigabit Network Connection",
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.2/net/eth3",
+					0,
+					"I350 Gigabit Network Connection",
+					"0000:a3:00.2",
+				),
+				Lldp: &wflows.NetworkInterfaceLldp{
+					PortId:           "ifname=" + mockDataSwitchPort(hostID, 0),
+					SwitchId:         strPtr("mac=" + mockSwitches[1].id),
+					SwitchSystemName: mockSwitches[1].name,
 				},
 			},
 			{
@@ -178,13 +191,13 @@ func MachineDiscoveryInfoForHost(hostID int) *wflows.DiscoveryInfo {
 				PciProperties: pciProperties(
 					"Intel Corporation",
 					"I350 Gigabit Network Connection",
-					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.1/net/eth4",
+					"/devices/pci0000:a0/0000:a0:01.3/0000:a3:00.3/net/eth4",
 					0,
 					"I350 Gigabit Network Connection",
-					"0000:a3:00.1",
+					"0000:a3:00.3",
 				),
 				Lldp: &wflows.NetworkInterfaceLldp{
-					PortId:           "ifname=" + mockDataSwitchPort(hostID),
+					PortId:           "ifname=" + mockDataSwitchPort(hostID, 1),
 					SwitchId:         strPtr("mac=" + mockSwitches[1].id),
 					SwitchSystemName: mockSwitches[1].name,
 				},
