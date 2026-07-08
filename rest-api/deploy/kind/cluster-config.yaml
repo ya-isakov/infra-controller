@@ -20,6 +20,11 @@ nodes:
       - hostPath: ./deploy/kind/certs.d
         containerPath: /etc/containerd/certs.d
         readOnly: true
+      # Pass host /dev through to the node so pods can access block devices
+      # (e.g. /dev/nbd0). Requires a Linux host.
+      - hostPath: /dev
+        containerPath: /dev
+        propagation: HostToContainer
     extraPortMappings:
       # API service
       - containerPort: 30388
