@@ -414,7 +414,7 @@ kind-reset-infra: docker-build-local
 	NAMESPACE=nico-rest ./scripts/setup-local.sh pki
 
 	@echo "Setting up PostgreSQL..."
-	kubectl apply -k deploy/kustomize/base/postgres/
+	kubectl apply -k deploy/kustomize/overlays/postgres/
 	kubectl -n postgres rollout status statefulset/postgres --timeout=240s
 
 	@echo "Configuring cert-manager.io ClusterIssuer..."
@@ -608,6 +608,7 @@ helm-template:
 helm-deploy:
 	helm upgrade --install nico-rest $(UMBRELLA_CHART)/ \
 		--namespace nico-rest --create-namespace $(HELM_SET) $(HELM_SET_KEYCLOAK) \
+		--values ./helm/local-values.yaml \
 		--set nico-rest-api.nodePort.enabled=true \
 		--set nico-rest-api.nodePort.port=30388 \
 		--wait --timeout 5m
@@ -621,7 +622,9 @@ helm-deploy:
 helm-deploy-site-agent:
 	@echo "Installing site-agent chart (will CrashLoop until bootstrapped)..."
 	helm upgrade --install nico-rest-site-agent $(SITE_AGENT_CHART)/ \
-		--namespace nico-rest $(HELM_SET) --timeout 1m || true
+		--namespace nico-rest $(HELM_SET) \
+		--values ./helm/site-agent-local-values.yaml \
+		--timeout 1m || true
 	@echo "Running site bootstrap (setup-local.sh site-agent)..."
 	./scripts/setup-local.sh site-agent
 	@echo "Waiting for site-agent to stabilize..."

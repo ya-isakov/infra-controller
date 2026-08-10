@@ -1,0 +1,12 @@
+# Local kind/dev resource overrides for the nico-rest-site-agent chart.
+#
+# See rest-api/helm/local-values.yaml for context on why these bumps exist.
+# Applied via --values in `helm upgrade --install nico-rest-site-agent`
+# (see rest-api/Makefile helm-deploy-site-agent target).
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "2"
