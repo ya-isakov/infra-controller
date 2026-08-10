@@ -1,0 +1,30 @@
+# Local kind/dev resource overrides for the nico-rest umbrella chart.
+#
+# Chart defaults ship with cpu=500m / memory=512Mi which throttles the
+# workflow workers under mock inventory load, causing activity StartToClose
+# timeouts and workflow cache-stale replay storms. These bumps give the pods
+# enough headroom to keep up in a kind deployment.
+#
+# Note: Postgres is deployed via kustomize (deploy/kustomize/base/postgres/),
+# NOT via this helm chart, so its resource bump lives there — not here.
+#
+# Applied via --values in `helm upgrade --install nico-rest` (see
+# rest-api/Makefile helm-deploy target). Kept as a separate file so upstream
+# rebases only touch it if the values.yaml resource schema itself changes.
+nico-rest-workflow:
+  cloudWorker:
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2"
+  siteWorker:
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2"
